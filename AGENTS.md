@@ -23,11 +23,11 @@ outside every host's discovery path. To use it, install into a home with `bootst
 ```text
 skills/lore/           the lore package, and what ships
   SKILL.md             the method; loaded at work time
-  commands/            load, retro, fold (Claude: /lore:load, /lore:retro, /lore:fold)
-  backends/            one mapping file per notes backend (ships files)
-  scripts/             lore-store.sh, the files-backend mechanics
+  commands/            load, retro, fold, backend (Claude: /lore:load, /lore:retro, /lore:fold, /lore:backend)
+  backends/            one mapping file per notes backend (ships files and tartib)
+  scripts/             lore-store.sh, the files-backend and fallback mechanics
 scripts/               install-skill.sh, run from a source clone only
-tests/                 installer and store tests, never installed
+tests/                 installer, store and fallback tests, never installed
 bootstrap.sh           one-command install, check, update
 kis/                   this repo's own project memory (read kis/state first)
 ```

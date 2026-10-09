@@ -18,6 +18,7 @@ test -f "$home/.agents/skills/lore/scripts/lore-store.sh" || fail "store script 
 test -f "$home/.agents/skills/lore/backends/files.md" || fail "files backend missing"
 test -L "$home/.claude/commands/lore" || fail "commands link missing"
 test -f "$home/.claude/commands/lore/load.md" || fail "commands link does not resolve"
+test -f "$home/.claude/commands/lore/backend.md" || fail "commands link does not resolve the backend command"
 test ! -e "$home/.agents/skills/lore/tests" || fail "tests must not be installed"
 
 # 2. byte-identical to source

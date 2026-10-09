@@ -64,3 +64,14 @@ profile fact lands only after the owner confirms it in words, and a reference ne
 address or value. `ai-agents` now holds 14 notes; `Agents: start here` links both new notes.
 Proved by `tests/run.sh` (the two new `init` guards mutation-checked) and
 `.orch/lore/proof-phase3-tartib.txt`.
+
+Phase 4 (2026-10-09, version 0.4.0) adds the fallback. When the configured backend is an MCP and it
+is unreachable, the store becomes a snapshot and the agent offers exactly three choices: reconnect
+it, work from the snapshot for now (each write goes to the snapshot **and** to `pending.md`, Fold is
+refused, and the queue replays at the next load), or switch to files for good. `lore-store.sh` adds
+`snapshot-write`/`snapshot-read`, `queue-add`/`queue-list`/`queue-pop`/`queue-clear`,
+`fallback-write` (snapshot + queue together) and `switch-files`; a replay applies entries oldest
+first and pops each only after its write succeeded, stopping at the first failure and keeping the
+rest. A new `/lore:backend` command drives config, reachability, reconnect, replay and switch. The
+MCP calls stay the agent's, per the mapping; the files-side mechanics are proved in temp homes by
+`tests/test-fallback.sh` and `.orch/lore/proof-phase4.txt`.

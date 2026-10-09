@@ -43,7 +43,7 @@ is a convenience for the snapshot, not the source of truth.
 | change a few words (bump) | `find_replace id find="<rule tail> (×N)" replace="<rule tail> (×N+1)" expected=1 scope="text" updated_at=<just read>` |
 | rewrite a note (Fold) | `edit_item id text=<merged text> updated_at=<just read>` |
 | delete a thought | `delete_thought id thought_id=<id from get_item>` |
-| create a note | `add_note text="# <Title>\n…" space=<space>` |
+| create a note | `add_note text="<Title>\n…" space=<space>` (the first line is the title, as in the table above) |
 
 ## Quirks and guards
 
@@ -64,6 +64,38 @@ is a convenience for the snapshot, not the source of truth.
   read back with `get_item` may the folded thoughts be deleted, one by one, ids from that read-back.
 - `add_note` must pass `space`, so the classifier cannot file the note elsewhere.
 - Keep each note under about 15,000 characters; a rule count hides long rules.
+
+## Fallback (the backend is unreachable)
+
+When `list_spaces` does not name the configured space, or the Tartib tools are absent in this
+session, say so in one line and offer exactly three choices. Never create the space.
+
+1. **Reconnect.** Name Tartib from the config and this host's one reconnecting step (Claude Code:
+   `/mcp`; Codex and other hosts: their own MCP settings), then retry the reachability call.
+2. **Files for now.** Read from the snapshot. Make every write with
+   `fallback-write <op> <note> <arg>` — it writes the snapshot and the queue together. Fold is
+   refused. Replay the queue at the start of the next load once Tartib is back.
+3. **Switch to files for good.** `switch-files`: `backend: files`, the snapshot becomes the store,
+   the queue is cleared.
+
+**Snapshot.** After a load that read Tartib, write each note it read to its snapshot file with
+`snapshot-write <note>`: the first line `# <the note's first line>` (so `# Agents: preferences`
+for `preferences.md`), then the note's `text`, then `## Thoughts` with one dated `- ` line per
+thought (its own date). Retro refreshes **every** mapped note this way. A snapshot write never
+touches `config` or `pending.md`, and a note not yet snapshotted is reported missing, never made up.
+
+**Queue.** One `fallback-write` per write, using the store-side name from the identity table above
+(`gotchas/<stack>.md` for a `Gotchas:` note) and, as its argument, the thought, the exact match
+text, or the title.
+
+**Replay** (at the start of a load with Tartib reachable, before any read): `queue-list`, oldest
+first; apply each entry through the table above; `queue-pop` only after that write succeeded. On
+the first failure, stop, keep that entry and every later one, and show the user what failed. A bump
+whose match is not found exactly once is a failure — `find_replace` with `expected=1` refuses it;
+never guess a match.
+
+`/lore:backend` (`../commands/backend.md`) drives all of this: config, reachability, reconnect,
+replay now, switch.
 
 ## Config
 

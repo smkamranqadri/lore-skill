@@ -12,6 +12,10 @@ Full instructions: `~/.agents/skills/lore/SKILL.md`. Resolve the backend first:
 `… config mapping` prints the mapping file. The mapping names the concrete call behind each
 operation below; for `files` those are `lore-store.sh` subcommands.
 
+If the backend is an MCP and it is not reachable, work from the snapshot: make every write with
+`fallback-write <op> <note> <arg>`, which writes the snapshot and the queue together, and skip Fold
+(it is refused while the backend is down). The queue replays at the next load.
+
 ## Steps
 
 1. From this session (and `$ARGUMENTS`), list what went wrong and what worked. Be honest about
@@ -33,6 +37,8 @@ operation below; for `files` those are `lore-store.sh` subcommands.
    - **a stack with no gotchas note**: **create a note** titled `Gotchas: <stack>` and add a link
      line for it to `start-here.md`. No other new notes.
 4. If any note you touched now has 10 or more thoughts, run Fold on it (`commands/fold.md`).
+5. When the backend is an MCP, refresh **every** mapped note in the snapshot afterwards: write each
+   note back with `snapshot-write <note>`, as the mapping says.
 
 ## Report
 

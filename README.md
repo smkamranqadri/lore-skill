@@ -27,14 +27,19 @@ to install somewhere other than `$HOME`.
 
 ## Use
 
-Claude Code: `/lore:load`, `/lore:retro`, `/lore:fold`. Codex and others: "run the lore load
-step" and follow `~/.agents/skills/lore/commands/<name>.md`. The method is in
+Claude Code: `/lore:load`, `/lore:retro`, `/lore:fold`, `/lore:backend`. Codex and others: "run the
+lore load step" and follow `~/.agents/skills/lore/commands/<name>.md`. The method is in
 `skills/lore/SKILL.md`; the backend in use is resolved from `~/.agents/memory/config` and mapped
 in `skills/lore/backends/<backend>.md`.
 
 Two backends ship: `files` (the store below, nothing else installed) and `tartib` (the configured
 space in Tartib, over its MCP tools). The store is `~/.agents/memory/`, one Markdown file per note.
 With no config, or `backend: files`, lore runs entirely on those files.
+
+When the configured backend is an MCP and it is not reachable, lore says so and offers three
+choices: reconnect it, work from the files snapshot for now (each write goes to the snapshot and to
+`pending.md`, Fold is refused, and the queue replays at the next load), or switch to files for good.
+`/lore:backend` drives that, including a replay on demand.
 
 ## Development
 

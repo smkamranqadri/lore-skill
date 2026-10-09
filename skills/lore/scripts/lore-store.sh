@@ -25,6 +25,15 @@ Commands:
   bump-rule <note> <match>              raise the (xN) marker on the one rule matching <match>
   fold-done <note> --confirm-sha <sha>  delete a folded note's thoughts
 
+  snapshot-write <note>                 write a snapshot note; content on stdin, first line "# Title"
+  snapshot-read <note>                  print a snapshot note; a note never read here is reported missing
+  queue-add <op> <note> <arg>           append one queued write (add-thought|bump-rule|create-note)
+  queue-list                            list queued writes, oldest first, tab-separated
+  queue-pop                             remove and print the oldest queued write
+  queue-clear                           remove every queued write
+  fallback-write <op> <note> <arg>      apply a write to the snapshot and queue it (Fold refused)
+  switch-files                          make files the backend: config becomes files, queue cleared
+
 Options:
   --store <dir>   Store directory. Defaults to $HOME/.agents/memory (or $LORE_STORE).
   -h, --help      Show this help.
@@ -96,6 +105,113 @@ write_if_absent() {
   mkdir -p "$(dirname "$store/$rel")"
   cat > "$store/$rel"
   created+=("$rel")
+}
+
+# --- fallback mechanics: the snapshot and the pending queue ------------------------------------
+# A snapshot is the files store's layout taken from an MCP backend, so switching to files for
+# good is this snapshot plus a config change. Writes made while the backend is down go to the
+# snapshot and to pending.md, and are replayed in order at the next load. See ../backends/files.md.
+
+tab=$'\t'
+
+# A queued write is one of three operations; a Fold is a rewrite plus deletes and cannot be queued.
+queue_op_ok() { case "$1" in add-thought|bump-rule|create-note) return 0 ;; *) return 1 ;; esac; }
+
+queue_arg_ok() {
+  [[ -n "$1" ]] || die "a queued write needs its argument: the thought, the exact match or the title"
+  [[ "$1" != *$'\n'* && "$1" != *"$tab"* ]] || die "a queued argument is one line with no tabs"
+}
+
+# queue_fields_ok <note> <arg>: the note and argument of one queued entry.
+queue_fields_ok() {
+  safe_note "$1"
+  [[ "$1" != *[[:space:]]* ]] || die "a queued note name must have no spaces: $1"
+  queue_arg_ok "$2"
+}
+
+# The next id, one past the highest "pN" already in the queue.
+queue_next_id() {
+  local max=0
+  if [[ -f "$store/pending.md" ]]; then
+    max="$(awk -F"$tab" '/^- p[0-9]+/{ id=$1; sub(/^- p/, "", id); if (id+0 > m) m=id+0 } END{ print m+0 }' "$store/pending.md")"
+  fi
+  printf 'p%s' "$(( max + 1 ))"
+}
+
+# queue_append <op> <note> <arg>: add one entry (its id and today's date) and print the id.
+queue_append() {
+  require_store
+  if [[ ! -f "$store/pending.md" ]]; then
+    cat > "$store/pending.md" <<'EOF'
+# Pending writes
+
+Writes made while the configured backend was unreachable, replayed in order at the next load.
+One entry per line, after a "- ": the id, the date, the operation, the note and its argument.
+
+EOF
+  fi
+  local id
+  id="$(queue_next_id)"
+  printf -- '- %s\t%s\t%s\t%s\t%s\n' "$id" "$(date_today)" "$1" "$2" "$3" >> "$store/pending.md"
+  printf '%s' "$id"
+}
+
+# op_add_thought <note> <text>
+op_add_thought() {
+  local rel="$1" text="$2"
+  require_note "$rel"
+  [[ -n "${text//[[:space:]]/}" ]] || die "thought text is required"
+  [[ "$text" != *$'\n'* ]] || die "a thought is one line; split it or fold first"
+  if grep -qx '## Thoughts' "$store/$rel"; then
+    [[ -n "$(tail -c 1 "$store/$rel")" ]] && printf '\n' >> "$store/$rel"
+  else
+    [[ -s "$store/$rel" ]] && printf '\n' >> "$store/$rel"
+    printf '## Thoughts\n\n' >> "$store/$rel"
+  fi
+  printf -- '- %s: %s\n' "$(date_today)" "$text" >> "$store/$rel"
+  echo "Thought added to $rel"
+}
+
+# op_bump_rule <note> <match>
+op_bump_rule() {
+  local rel="$1" match="$2"
+  local thoughts_ln="" h="" hit_ln="" local_ln="" line="" n="" newline=""
+  local hits=()
+  require_note "$rel"
+  [[ -n "$match" ]] || die "match text is required"
+  # Only lines above "## Thoughts" are rules; a bulleted thought is never a rule.
+  thoughts_ln="$(grep -nE '^## Thoughts[[:space:]]*$' "$store/$rel" | head -n1 | cut -d: -f1 || true)"
+  while IFS= read -r h; do
+    hit_ln="${h%%:*}"
+    if [[ -n "$thoughts_ln" && "$hit_ln" -ge "$thoughts_ln" ]]; then continue; fi
+    hits+=("$h")
+  done < <(grep -nE '^[[:space:]]*([0-9]+\.|[-*])[[:space:]]+' "$store/$rel" | grep -F -- "$match" || true)
+  [[ ${#hits[@]} -gt 0 ]] || die "no rule matches: $match"
+  [[ ${#hits[@]} -eq 1 ]] || die "${#hits[@]} rules match '$match'; give more of the rule"
+  local_ln="${hits[0]%%:*}"
+  line="${hits[0]#*:}"
+  if [[ "$line" =~ \(×([0-9]+)\)[[:space:]]*$ ]]; then
+    n=$(( ${BASH_REMATCH[1]} + 1 ))
+    newline="${line%\(×*}(×$n)"
+  else
+    n=2
+    newline="$line (×2)"
+  fi
+  awk -v ln="$local_ln" -v repl="$newline" 'NR==ln{print repl; next}{print}' "$store/$rel" > "$store/$rel.tmp"
+  mv "$store/$rel.tmp" "$store/$rel"
+  echo "Bumped $rel line $local_ln to ×$n"
+}
+
+# op_create_note <note> <title>
+op_create_note() {
+  local rel="$1" title="$2"
+  require_store
+  safe_note "$rel"
+  [[ -e "$store/$rel" ]] && die "note already exists: $rel"
+  [[ -n "$title" ]] || title="$(basename "$rel" .md)"
+  mkdir -p "$(dirname "$store/$rel")"
+  printf '# %s\n' "$title" > "$store/$rel"
+  echo "Created $rel"
 }
 
 case "$cmd" in
@@ -209,7 +325,6 @@ EOF
     ;;
 
   create)
-    require_store
     rel="${1:-}"; shift || true
     title=""
     while [[ $# -gt 0 ]]; do
@@ -218,57 +333,118 @@ EOF
         *) die "unknown argument: $1" ;;
       esac
     done
-    safe_note "$rel"
-    [[ -e "$store/$rel" ]] && die "note already exists: $rel"
-    [[ -n "$title" ]] || title="$(basename "$rel" .md)"
-    mkdir -p "$(dirname "$store/$rel")"
-    printf '# %s\n' "$title" > "$store/$rel"
-    echo "Created $rel"
+    op_create_note "$rel" "$title"
     ;;
 
   add-thought)
-    require_store
-    rel="${1:-}"; text="${2:-}"
-    require_note "$rel"
-    [[ -n "${text//[[:space:]]/}" ]] || die "thought text is required"
-    [[ "$text" != *$'\n'* ]] || die "a thought is one line; split it or fold first"
-    if grep -qx '## Thoughts' "$store/$rel"; then
-      [[ -n "$(tail -c 1 "$store/$rel")" ]] && printf '\n' >> "$store/$rel"
-    else
-      [[ -s "$store/$rel" ]] && printf '\n' >> "$store/$rel"
-      printf '## Thoughts\n\n' >> "$store/$rel"
-    fi
-    printf -- '- %s: %s\n' "$(date_today)" "$text" >> "$store/$rel"
-    echo "Thought added to $rel"
+    op_add_thought "${1:-}" "${2:-}"
     ;;
 
   bump-rule)
+    op_bump_rule "${1:-}" "${2:-}"
+    ;;
+
+  snapshot-write)
+    rel="${1:-}"; shift || true
+    [[ $# -eq 0 ]] || die "snapshot-write takes one note name, the content on stdin"
     require_store
-    rel="${1:-}"; match="${2:-}"
-    require_note "$rel"
-    [[ -n "$match" ]] || die "match text is required"
-    # Only lines above "## Thoughts" are rules; a bulleted thought is never a rule.
-    thoughts_ln="$(grep -nE '^## Thoughts[[:space:]]*$' "$store/$rel" | head -n1 | cut -d: -f1 || true)"
-    hits=()
-    while IFS= read -r h; do
-      hit_ln="${h%%:*}"
-      if [[ -n "$thoughts_ln" && "$hit_ln" -ge "$thoughts_ln" ]]; then continue; fi
-      hits+=("$h")
-    done < <(grep -nE '^[[:space:]]*([0-9]+\.|[-*])[[:space:]]+' "$store/$rel" | grep -F -- "$match" || true)
-    [[ ${#hits[@]} -gt 0 ]] || die "no rule matches: $match"
-    [[ ${#hits[@]} -eq 1 ]] || die "${#hits[@]} rules match '$match'; give more of the rule"
-    local_ln="${hits[0]%%:*}"
-    line="${hits[0]#*:}"
-    if [[ "$line" =~ \(×([0-9]+)\)[[:space:]]*$ ]]; then
-      n=$(( ${BASH_REMATCH[1]} + 1 ))
-      newline="${line%\(×*}(×$n)"
-    else
-      n=2
-      newline="$line (×2)"
+    safe_note "$rel"
+    case "$rel" in
+      config|pending.md) die "refusing to write over $rel: it is not a note" ;;
+    esac
+    mkdir -p "$(dirname "$store/$rel")"
+    cat > "$store/$rel.tmp"
+    if [[ ! -s "$store/$rel.tmp" ]]; then
+      rm -f "$store/$rel.tmp"
+      die "snapshot content is empty"
     fi
-    awk -v ln="$local_ln" -v repl="$newline" 'NR==ln{print repl; next}{print}' "$store/$rel" > "$store/$rel.tmp"
+    first="$(head -n1 "$store/$rel.tmp")"
+    if [[ "$first" != '# '* ]]; then
+      rm -f "$store/$rel.tmp"
+      die "a note begins with a '# Title' line; got: $first"
+    fi
     mv "$store/$rel.tmp" "$store/$rel"
-    echo "Bumped $rel line $local_ln to ×$n"
+    echo "Snapshotted $rel"
+    ;;
+
+  snapshot-read)
+    rel="${1:-}"
+    require_store
+    safe_note "$rel"
+    [[ -f "$store/$rel" ]] || die "not in the snapshot: $rel (this note has not been read here)"
+    cat "$store/$rel"
+    ;;
+
+  queue-add)
+    op="${1:-}"; note="${2:-}"; arg="${3:-}"
+    [[ $# -le 3 ]] || die "queue-add takes: <op> <note> <arg>"
+    require_store
+    queue_op_ok "$op" || die "unknown queued operation: $op (add-thought, bump-rule, create-note)"
+    queue_fields_ok "$note" "$arg"
+    id="$(queue_append "$op" "$note" "$arg")"
+    echo "Queued $id ($op $note)"
+    ;;
+
+  queue-list)
+    require_store
+    [[ -f "$store/pending.md" ]] || exit 0
+    awk '/^- /{ sub(/^- /, ""); print }' "$store/pending.md"
+    ;;
+
+  queue-pop)
+    require_store
+    entry=""
+    if [[ -f "$store/pending.md" ]]; then
+      entry="$(awk '/^- /{ print; exit }' "$store/pending.md")"
+    fi
+    [[ -n "$entry" ]] || die "the queue is empty"
+    awk 'BEGIN{ dropped=0 } /^- /{ if (!dropped) { dropped=1; next } } { print }' \
+      "$store/pending.md" > "$store/pending.md.tmp"
+    mv "$store/pending.md.tmp" "$store/pending.md"
+    printf '%s\n' "${entry#- }"
+    ;;
+
+  queue-clear)
+    require_store
+    cleared=0
+    if [[ -f "$store/pending.md" ]]; then
+      cleared="$(awk '/^- /{ c++ } END{ print c+0 }' "$store/pending.md")"
+      awk '!/^- /{ print }' "$store/pending.md" > "$store/pending.md.tmp"
+      mv "$store/pending.md.tmp" "$store/pending.md"
+    fi
+    echo "Cleared $cleared queued write(s)"
+    ;;
+
+  fallback-write)
+    op="${1:-}"; note="${2:-}"; arg="${3:-}"
+    [[ $# -le 3 ]] || die "fallback-write takes: <op> <note> <arg>"
+    case "$op" in
+      add-thought|bump-rule|create-note) ;;
+      fold) die "no Fold while the backend is unreachable; reconnect it or switch to files" ;;
+      "") die "fallback-write needs an operation: add-thought, bump-rule or create-note" ;;
+      *) die "unknown fallback operation: $op (add-thought, bump-rule, create-note)" ;;
+    esac
+    require_store
+    queue_fields_ok "$note" "$arg"
+    case "$op" in
+      add-thought) op_add_thought "$note" "$arg" ;;
+      bump-rule)   op_bump_rule "$note" "$arg" ;;
+      create-note) op_create_note "$note" "$arg" ;;
+    esac
+    id="$(queue_append "$op" "$note" "$arg")"
+    echo "Queued $id ($op $note)"
+    ;;
+
+  switch-files)
+    require_store
+    cleared=0
+    if [[ -f "$store/pending.md" ]]; then
+      cleared="$(awk '/^- /{ c++ } END{ print c+0 }' "$store/pending.md")"
+      awk '!/^- /{ print }' "$store/pending.md" > "$store/pending.md.tmp"
+      mv "$store/pending.md.tmp" "$store/pending.md"
+    fi
+    printf 'backend: files\n' > "$store/config"
+    printf 'Backend is files; %s is the store from now on. Cleared %s queued write(s).\n' "$store" "$cleared"
     ;;
 
   fold-done)

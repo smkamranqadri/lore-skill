@@ -2,7 +2,7 @@
 name: lore
 description: "Load and maintain the user's memory across projects: the user profile, preferences and core rules at session start, the gotchas note for a stack you are about to touch, a reference when a location is needed, the coordination rules before briefing or running other agents, and a dated retrospective at the end of a session. Use when the user says retro, retrospective, lessons, fold, or asks to load, save or clean up their general memory. What is true in one project only belongs in that project's own memory (KIS), never here."
 metadata:
-  version: "0.3.0"
+  version: "0.4.0"
 ---
 
 # lore
@@ -25,7 +25,7 @@ coordinating.md    briefing, running and merging other agents
 gotchas/<stack>.md a stack the session touches
 profile.md         who the user is
 references.md      reference facts and links: where a repo, tool or service lives
-pending.md         writes queued while a backend is down    (phase 4)
+pending.md         writes queued while an MCP backend is down, replayed at the next load
 ```
 
 ## Backends
@@ -43,8 +43,14 @@ lore-store.sh config mapping  # the mapping file to read
 ```
 
 No `config`, or `backend: files`, means the files backend: everything runs on `~/.agents/memory/`.
-When the configured backend is unavailable, say so in one line and work from the files snapshot;
-never create a Tartib space or a store to make it reachable.
+
+When the configured backend is an MCP and it is not reachable, say so in one line and offer
+exactly three choices: **reconnect** it (name the MCP and this host's one reconnecting step, then
+retry the reachability call); **work from the snapshot for now** (every write goes to the snapshot
+and to `pending.md`, Fold is refused, and the queue replays at the next load once the backend is
+back); or **switch to files for good** (`backend: files`, the snapshot becomes the store, the
+queue is cleared). Never create a space or a store to make it reachable. The mechanics and
+guards are in `backends/files.md` and `backends/tartib.md`; `/lore:backend` drives them.
 
 ## Operations
 
@@ -77,20 +83,24 @@ Do not read the whole store. Do not summarise the notes back to the user; follow
 
 ## Commands
 
-Claude Code: `/lore:load`, `/lore:retro`, `/lore:fold` (files in `commands/`, linked from
-`~/.claude/commands/lore`). Other hosts: name the step ("run the lore retro"). Each command file
-stands alone.
+Claude Code: `/lore:load`, `/lore:retro`, `/lore:fold`, `/lore:backend` (files in `commands/`,
+linked from `~/.claude/commands/lore`). Other hosts: name the step ("run the lore retro"). Each
+command file stands alone.
 
-- **Load** (session start): resolve the backend, read preferences, core rules and the profile,
-  then only the gotchas notes the work touches and references only when the task needs a location.
-  Read-only after setup.
+- **Load** (session start): resolve the backend, replay any queued writes once it is reachable,
+  then read preferences, core rules and the profile, then only the gotchas notes the work touches
+  and references only when the task needs a location. Write each note read to its snapshot file
+  when the backend is an MCP.
 - **Retrospective** (end of session, or when asked): turn this session's lessons into general
   ones; a bump for a rule already covered, a thought for a new one. A preference or a profile
   fact only after the user confirms it in words; a reference names where a thing lives and never
-  holds a secret, address or value; a new stack's gotchas note only when a stack has none.
+  holds a secret, address or value; a new stack's gotchas note only when a stack has none. When
+  the backend is an MCP, refresh every mapped note in the snapshot afterwards.
 - **Fold** (a note with 10 or more thoughts, or when asked): merge the thoughts into the note
   text, read it back, then delete them. Never delete a thought whose content is not in the text
-  you just read back.
+  you just read back. Refused while working from a snapshot.
+- **Backend** (`/lore:backend`): show the config and whether the backend is reachable, reconnect
+  it, replay the queue now, or switch to files for good.
 
 ## Never
 

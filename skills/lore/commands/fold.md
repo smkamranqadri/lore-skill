@@ -12,6 +12,10 @@ Full instructions: `~/.agents/skills/lore/SKILL.md`. Resolve the backend first:
 `… config mapping` prints the mapping file. The mapping names the concrete call behind each
 operation below; for `files` those are `lore-store.sh` subcommands.
 
+If the backend is an MCP and it is not reachable, refuse in one line: Fold is unavailable while the
+backend is down, because a rewrite and its deletes cannot be queued for replay. Do not fold the
+snapshot. `commands/backend.md` has the ways back (reconnect, or switch to files for good).
+
 ## Steps
 
 1. Pick the note named in `$ARGUMENTS`, or else every note with 10 or more thoughts (count the
