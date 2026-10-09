@@ -34,6 +34,9 @@ agent-lessons skill.
 Claude Code's per-project memory (`~/.claude/projects/*/memory/*.md`, 33 files on
 2026-10-09, frontmatter `type: user | feedback | project | reference`), `~/.claude/CLAUDE.md`,
 and KIS Knowledge files. Read once for the seed; lore never depends on them afterwards.
+Phase 3 read the 6 `user`/`reference` entries, CLAUDE.md and the cross-project KIS references,
+drafted `.orch/lore/seed-candidates.md`, and wrote only the owner-approved lines
+(`.orch/lore/seed-approved.md`) as the two notes.
 
 ## Shape
 
@@ -53,3 +56,11 @@ eight operations and read the mapping of the configured backend instead of namin
 Tartib space `ai-agents` holds 12 notes; the ones lore maps: `Agents: start here` (333),
 `Agents: preferences` (323), `Agents: core rules` (324), `Agents: coordinating parallel agents`
 (325), and the `Gotchas: …` notes. Lore uses the configured space only; it never creates one.
+
+Phase 3 (2026-10-09, version 0.3.0) adds the two notes. `profile.md` (Tartib `User: profile`, 405)
+and `references.md` (`User: references`, 406) join the store layout and the files backend's
+starter notes; load reads the profile always and references only when a task needs a location; a
+profile fact lands only after the owner confirms it in words, and a reference never holds a secret,
+address or value. `ai-agents` now holds 14 notes; `Agents: start here` links both new notes.
+Proved by `tests/run.sh` (the two new `init` guards mutation-checked) and
+`.orch/lore/proof-phase3-tartib.txt`.

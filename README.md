@@ -2,7 +2,7 @@
 
 Source repository for **lore**: one memory across projects for any agent (Claude Code, Codex,
 Command Code, others). It holds what is true in every project — lessons, preferences, gotchas
-per stack, and later the user profile and references. It replaces the agent-lessons skill.
+per stack, the user profile and references. It replaces the agent-lessons skill.
 
 Nothing here is a live install. The installer copies `skills/lore/` to `~/.agents/skills/lore`
 and links `~/.claude/commands/lore`, which is where Claude Code, Codex and other hosts look.

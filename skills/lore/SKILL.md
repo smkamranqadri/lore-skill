@@ -1,8 +1,8 @@
 ---
 name: lore
-description: "Load and maintain the user's memory across projects: preferences and core rules at session start, the gotchas note for a stack you are about to touch, the coordination rules before briefing or running other agents, and a dated retrospective at the end of a session. Use when the user says retro, retrospective, lessons, fold, or asks to load, save or clean up their general memory. What is true in one project only belongs in that project's own memory (KIS), never here."
+description: "Load and maintain the user's memory across projects: the user profile, preferences and core rules at session start, the gotchas note for a stack you are about to touch, a reference when a location is needed, the coordination rules before briefing or running other agents, and a dated retrospective at the end of a session. Use when the user says retro, retrospective, lessons, fold, or asks to load, save or clean up their general memory. What is true in one project only belongs in that project's own memory (KIS), never here."
 metadata:
-  version: "0.2.0"
+  version: "0.3.0"
 ---
 
 # lore
@@ -23,8 +23,8 @@ preferences.md     how the user wants work done
 core-rules.md      rules that cost the most when broken
 coordinating.md    briefing, running and merging other agents
 gotchas/<stack>.md a stack the session touches
-profile.md         who the user is                          (phase 3)
-references.md      reference facts and links               (phase 3)
+profile.md         who the user is
+references.md      reference facts and links: where a repo, tool or service lives
 pending.md         writes queued while a backend is down    (phase 4)
 ```
 
@@ -66,10 +66,12 @@ Every backend maps these eight. Use the name, then read the mapping for the call
 | Note | Read when |
 |---|---|
 | `start-here.md` | Anything below is unclear; it is the index and the method. |
+| `profile.md` | Always, at session start. |
 | `preferences.md` | Always, at session start. |
 | `core-rules.md` | Always, at session start. |
 | `coordinating.md` | You brief, run or merge other agents. |
 | `gotchas/<stack>.md` | The work touches that stack. |
+| `references.md` | The task needs to locate a repo, tool or service. |
 
 Do not read the whole store. Do not summarise the notes back to the user; follow them.
 
@@ -79,11 +81,13 @@ Claude Code: `/lore:load`, `/lore:retro`, `/lore:fold` (files in `commands/`, li
 `~/.claude/commands/lore`). Other hosts: name the step ("run the lore retro"). Each command file
 stands alone.
 
-- **Load** (session start): resolve the backend, read preferences and core rules, then only the
-  gotchas notes the work touches. Read-only after setup.
+- **Load** (session start): resolve the backend, read preferences, core rules and the profile,
+  then only the gotchas notes the work touches and references only when the task needs a location.
+  Read-only after setup.
 - **Retrospective** (end of session, or when asked): turn this session's lessons into general
-  ones; a bump for a rule already covered, a thought for a new one. A preference only after the
-  user confirms it in words; a new stack's gotchas note only when a stack has none.
+  ones; a bump for a rule already covered, a thought for a new one. A preference or a profile
+  fact only after the user confirms it in words; a reference names where a thing lives and never
+  holds a secret, address or value; a new stack's gotchas note only when a stack has none.
 - **Fold** (a note with 10 or more thoughts, or when asked): merge the thoughts into the note
   text, read it back, then delete them. Never delete a thought whose content is not in the text
   you just read back.

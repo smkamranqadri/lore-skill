@@ -18,10 +18,11 @@ the mapping also says how a store that does not exist yet is created on first us
 2. **reachable?** — if the backend is not reachable (or its tools are absent in this session), say
    so in one line and work from the files snapshot. Never create a store or a space to make it
    reachable.
-3. **read a note with thoughts** for `preferences.md` and `core-rules.md`.
+3. **read a note with thoughts** for `preferences.md`, `core-rules.md` and `profile.md`.
 4. **read a note with thoughts** for the gotchas notes that apply, chosen from `$ARGUMENTS`, the
-   repository and the task in front of you. Read `coordinating.md` only if you will brief or run
-   other agents.
+   repository and the task in front of you, and for `references.md` only when the task needs to
+   locate a repo, tool or service. Read `coordinating.md` only if you will brief or run other
+   agents.
 5. Read nothing else.
 
 ## Report

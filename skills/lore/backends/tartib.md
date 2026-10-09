@@ -23,8 +23,8 @@ it. `list_items` the space to see every note and its id.
 | core-rules.md | `Agents: core rules` |
 | coordinating.md | `Agents: coordinating parallel agents` |
 | gotchas/<stack>.md | `Gotchas: <stack>` |
-| profile.md | the profile note (phase 3) |
-| references.md | the references note (phase 3) |
+| profile.md | `User: profile` |
+| references.md | `User: references` |
 
 The gotchas notes in `ai-agents` today: `Gotchas: shell, macOS and Claude Code`; `Gotchas: Flutter,
 Android and iOS`; `Gotchas: web (Next.js, Tailwind, React, Tiptap, Node)`; `Gotchas: backend data

@@ -1,30 +1,22 @@
 # Current
 
 - Branch: `main`, tracking `origin/main` at `https://github.com/smkamranqadri/lore-skill`
-  (private until the owner says otherwise), pushed 2026-10-09. Commits: `5f69f00` phase 1,
-  `39486f4` phase 2a, then the phase 2 switch sync.
-- Task: none in progress. Phase 2 of `../intent/plan-2026-10-09-lore.md` is **done**
-  (2026-10-09); phase 3 (profile and references) waits for the owner's go.
-- Live (2026-10-09): lore 0.2.0 at `~/.agents/skills/lore` (`bootstrap.sh check --source .`
-  current), `~/.claude/commands/lore`, `~/.claude/skills/lore` (made by hand: no installer here
-  or in orch-skill creates `~/.claude/skills/<name>`); `~/.agents/memory/config` holds
-  `backend: tartib`, `space: ai-agents` and resolves through `lore-store.sh config`.
-  agent-lessons removed; backup and the pre-switch global files in
-  `~/.agents/lore-switch-backup-20261009/`.
+  (private until the owner says otherwise), pushed 2026-10-09 through the phase 3 commit.
+  Commits: `5f69f00` phase 1, `39486f4` phase 2a, the phase 2 switch sync, phase 3.
+- Task: none in progress. **Phase 3 (profile and references) done** 2026-10-09: the owner
+  approved the seed line by line (stage A), stage B shipped the two notes and the skill change;
+  verified by the orchestrator (notes match the approved lines, suite, one more mutation).
+- Live (2026-10-09): lore **0.3.0** at `~/.agents/skills/lore` (`bootstrap.sh update` then
+  `check` current). `~/.claude/commands/lore`
+  and `~/.claude/skills/lore` present; `~/.agents/memory/config` = `backend: tartib`, `space:
+  ai-agents`.
 - Command: `tests/run.sh`; `./bootstrap.sh check --source .`.
 - Blocker: none.
-- Proof: 2a in the plan Status and `.orch/lore/proof-tartib-probe.txt` (probe thought 471 gone,
-  core rule 1 back at ×15, rechecked by the orchestrator). Switch: no live file under
-  `~/.agents/skills`, `~/.claude` (CLAUDE.md, agents, settings), `~/.codex/AGENTS.md` or
-  `~/.commandcode/AGENTS.md` names agent-lessons or `/lessons:`.
-- Proof of the installed path (2026-10-09, lore 0.2.0): a Haiku sub-agent ran `/lore:load` with
-  the real config: backend tartib, space ai-agents reachable, read 323, 324 and 326, no writes,
-  `~/.agents/memory` holds only `config`. Tartib notes 333 and 325 reworded to lore by
-  `find_replace` (one line each, owner approved); no ai-agents note names agent-lessons.
-- Not proved: orch and session-close with lore absent (checked by reading the fallback prose,
-  not by a run).
-- Before phase 3: probe whether the lore agent (Command Code) can read and write outside this
-  repo (it did read outside during 2a); refresh or drop `.orch/lore/ref/`; read its context.
-  `commands/load.md` already says "work from the files snapshot" when unreachable; that
-  snapshot is phase 4.
-- Next: phase 3 (profile and references) on the owner's go.
+- Proof (phase 3): `.orch/lore/proof-phase3-tartib.txt` (dated). Full suite green (install and
+  store); the new `init` guards mutation-checked (4 mutations, each failed with its expected
+  message, the saved original written back identical); Tartib notes 405 `User: profile` and 406
+  `User: references` written from the approved lines and read back; `Agents: start here` (333)
+  gained one link line for each (`find_replace`, `expected=1`, `scope=text`; lines 8 and 19 only),
+  and a load-style `search` then `get_item` read of `User: profile` succeeded.
+- Not proved: the host-instruction redirect (phase 5).
+- Next: phase 4 (fallback, snapshot, queue) on the owner's go.

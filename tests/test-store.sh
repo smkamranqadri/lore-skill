@@ -26,16 +26,22 @@ L="$store_sh"
 
 # 1. init from nothing creates the starter notes
 ok "$L" init
-for n in config start-here.md preferences.md core-rules.md coordinating.md gotchas/shell-macos-claude-code.md; do
+for n in config start-here.md preferences.md core-rules.md coordinating.md profile.md references.md gotchas/shell-macos-claude-code.md; do
   [[ -f "$store/$n" ]] || fail "init did not create $n"
 done
 grep -q '^backend: files$' "$store/config" || fail "config missing backend: files"
+grep -q '^# Profile$' "$store/profile.md" || fail "profile starter note has the wrong title"
+grep -q 'confirms it in words, as for preferences\.$' "$store/profile.md" || fail "profile starter note is missing its rule"
+grep -q '^# References$' "$store/references.md" || fail "references starter note has the wrong title"
+grep -q 'never a secret, address or value\.$' "$store/references.md" || fail "references starter note is missing its rule"
 grep -q '^Created ' "$log" || fail "init did not report what it created"
 
 # 2. init is idempotent and never overwrites (mutation would clobber the edit)
 printf '%s\n' '7. A rule the user added.' >> "$store/core-rules.md"
+printf '%s\n' '6. A fact the user added.' >> "$store/profile.md"
 ok "$L" init
 grep -q 'A rule the user added' "$store/core-rules.md" || fail "init overwrote an existing note"
+grep -q 'A fact the user added' "$store/profile.md" || fail "init overwrote an existing profile"
 grep -q 'Store current' "$log" || fail "second init did not say the store is current"
 
 # 3. list

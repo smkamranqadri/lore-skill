@@ -25,6 +25,11 @@ operation below; for `files` those are `lore-store.sh` subcommands.
      with no session story and no project names. The backend dates it.
    - **a preference**: only if the user confirmed it in words this session, as a thought on
      `preferences.md`.
+   - **a profile fact**: only if the user confirmed it in words this session, as a thought on
+     `profile.md`; nothing inferred from their files or machine.
+   - **a reference**: where a repo, tool or service lives, as a thought on `references.md`. It
+     names the thing and where to find it, never a secret, address or value; if unsure, leave it
+     out.
    - **a stack with no gotchas note**: **create a note** titled `Gotchas: <stack>` and add a link
      line for it to `start-here.md`. No other new notes.
 4. If any note you touched now has 10 or more thoughts, run Fold on it (`commands/fold.md`).

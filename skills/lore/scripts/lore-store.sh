@@ -169,6 +169,17 @@ EOF
 - One worktree or directory per agent; never let two agents edit one tree.
 - Judge an agent by the artifact, not by its report.
 EOF
+    write_if_absent profile.md <<'EOF'
+# Profile
+
+Who the user is. Add a fact only after the user confirms it in words, as for preferences.
+EOF
+    write_if_absent references.md <<'EOF'
+# References
+
+Where a repo, tool or service lives, so it can be found without searching. A reference names the
+thing and where to find it, never a secret, address or value.
+EOF
     write_if_absent gotchas/shell-macos-claude-code.md <<'EOF'
 # Gotchas: shell, macOS and Claude Code
 
