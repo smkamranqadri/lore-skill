@@ -78,21 +78,37 @@ session, say so in one line and offer exactly three choices. Never create the sp
 3. **Switch to files for good.** `switch-files`: `backend: files`, the snapshot becomes the store,
    the queue is cleared.
 
-**Snapshot.** After a load that read Tartib, write each note it read to its snapshot file with
-`snapshot-write <note>`: the first line `# <the note's first line>` (so `# Agents: preferences`
-for `preferences.md`), then the note's `text`, then `## Thoughts` with one dated `- ` line per
-thought (its own date). Retro refreshes **every** mapped note this way. A snapshot write never
-touches `config` or `pending.md`, and a note not yet snapshotted is reported missing, never made up.
+**Snapshot.** After a load that read Tartib, write each note it read to its snapshot file so that two
+agents produce the same bytes: pipe the note through `snapshot-render`, then into `snapshot-write`.
+
+```bash
+lore-store.sh snapshot-render [--thought <YYYY-MM-DD> "<one-line thought>"]... < note-text.txt \
+  | lore-store.sh snapshot-write <note>
+```
+
+`snapshot-render` reads the note's `text` on stdin and prints the files-store note: the title once,
+as the H1 (`# <the note's first line>`, so `# Agents: preferences` for `preferences.md`), then the
+rest of the text byte for byte, then — only when at least one `--thought` is given — a blank line,
+`## Thoughts`, a blank line, and one `- <date>: <text>` line per thought, in the order given (its own
+date). The title never appears twice: `# Agents: preferences` on line 1, and no plain
+`Agents: preferences` line after it. It refuses an empty text, a blank first line, a first line that
+already starts with `# `, a `--thought` date that is not `YYYY-MM-DD`, and a `--thought` text that is
+not one line.
+
+Retro refreshes **every** mapped note the same way. `snapshot-write` refuses `config` and
+`pending.md`, so a snapshot never touches either; and a note not yet snapshotted is reported missing,
+never made up.
 
 **Queue.** One `fallback-write` per write, using the store-side name from the identity table above
 (`gotchas/<stack>.md` for a `Gotchas:` note) and, as its argument, the thought, the exact match
 text, or the title.
 
-**Replay** (at the start of a load with Tartib reachable, before any read): `queue-list`, oldest
-first; apply each entry through the table above; `queue-pop` only after that write succeeded. On
-the first failure, stop, keep that entry and every later one, and show the user what failed. A bump
-whose match is not found exactly once is a failure — `find_replace` with `expected=1` refuses it;
-never guess a match.
+**Replay** (at the start of a load with Tartib reachable, before the load's own note reads):
+`queue-list`, oldest first; look up each target note (`search` for its first line) to get its id;
+apply each entry through the table above; `queue-pop` only after that write succeeded. On the first
+failure, stop, keep that entry and every later one, and show the user what failed. A bump whose
+match is not found exactly once is a failure — `find_replace` with `expected=1` refuses it; never
+guess a match.
 
 `/lore:backend` (`../commands/backend.md`) drives all of this: config, reachability, reconnect,
 replay now, switch.

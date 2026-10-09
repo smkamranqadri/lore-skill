@@ -25,7 +25,8 @@ other hosts: their own MCP settings), then retry the reachability call.
 
 Only when the backend is reachable. Apply the queue (`lore-store.sh queue-list`) oldest entry first
 through the mapping, and `queue-pop` only after that write succeeded; on the first failure stop, keep
-that entry and every later one, and show the user what failed. Never read before the replay.
+that entry and every later one, and show the user what failed. Do not begin the load's own note reads
+before the replay; the replay may look up each target note it writes (the mapping's "find a note").
 
 ## Switch
 

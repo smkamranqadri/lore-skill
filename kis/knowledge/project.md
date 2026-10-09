@@ -40,9 +40,11 @@ drafted `.orch/lore/seed-candidates.md`, and wrote only the owner-approved lines
 
 ## Shape
 
-Like orch-skill: `skills/lore/` ships and is copied verbatim to `~/.agents/skills/lore`;
-`bootstrap.sh` installs, checks and updates; `tests/run.sh` runs the tests. KIS 0.10.0 is
-installed in this repo from the local `../kis-loop-skill` clone.
+Like orch-skill: `skills/lore/` ships and is copied verbatim to `~/.agents/skills/lore`; the
+installer also makes the Claude links `~/.claude/skills/lore` (-> `../../.agents/skills/lore`) and
+`~/.claude/commands/lore` — a correct link is left alone, anything else at the path is kept and
+reported, even with `--force`; `bootstrap.sh` installs, checks and updates; `tests/run.sh` runs the
+tests. KIS 0.10.0 is installed in this repo from the local `../kis-loop-skill` clone.
 
 Phase 1 (2026-10-09) ships `skills/lore/SKILL.md`, the `load`/`retro`/`fold` commands,
 `backends/files.md`, and `scripts/lore-store.sh` (subcommands: init, list, read, sha, create,
@@ -74,4 +76,16 @@ refused, and the queue replays at the next load), or switch to files for good. `
 first and pops each only after its write succeeded, stopping at the first failure and keeping the
 rest. A new `/lore:backend` command drives config, reachability, reconnect, replay and switch. The
 MCP calls stay the agent's, per the mapping; the files-side mechanics are proved in temp homes by
-`tests/test-fallback.sh` and `.orch/lore/proof-phase4.txt`.
+`tests/test-fallback.sh` and `.orch/lore/proof-phase4.txt`. The live acceptance of 0.4.0 passed
+2026-10-09 (`.orch/lore/live-acceptance-0.4.0.md`); it found that a replay must first `search` for
+the target note's id, which the old "before any read" wording did not allow.
+
+0.4.1 (2026-10-09) fixes that wording — a replay runs before the load's own note reads and may look
+up each target note it writes — and has `install-skill.sh` create the Claude discovery link
+`~/.claude/skills/lore` under the `--no-claude-link` opt-out (correct: left alone; anything else:
+kept and reported even with `--force`), with `bootstrap.sh check` reporting a missing or different
+link. It also pins the snapshot rendering: `lore-store.sh snapshot-render` writes the title once as
+the H1, the rest of the note's text byte for byte, then `## Thoughts` per `--thought <date> <text>`
+(the tartib mapping names the call), so two agents produce the same bytes. Proved by
+`tests/test-skill-links.sh` (8 guards mutation-checked), a `snapshot-render` fixture (7 guards
+mutation-checked) and `.orch/lore/proof-041.txt`.

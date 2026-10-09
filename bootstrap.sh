@@ -18,7 +18,7 @@ Options:
   --source <path>    Local source repo root. Skips the clone.
   --home <dir>       Home directory to install into. Defaults to $HOME.
   --force            install: replace an existing install.
-  --no-claude-link   Do not create ~/.claude/commands/lore.
+  --no-claude-link   Do not create the ~/.claude links (skills/lore and commands/lore).
   -h, --help         Show this help.
 
 Examples:
@@ -88,6 +88,25 @@ compare() {
   done
 }
 
+# Prints one line per skill: "<name> current|differs|missing" for the Claude discovery link.
+# Nothing when the claude link is off. A correct link is current; anything else at that path
+# (a different link, a file, a directory, a dangling link) differs.
+compare_skill_links() {
+  local src name link
+  [[ "$claude_link" == "true" ]] || return 0
+  for src in "$source_root"/skills/*/; do
+    name="$(basename "$src")"
+    link="$home_dir/.claude/skills/$name"
+    if [[ -L "$link" ]] && [[ "$(readlink "$link")" == "../../.agents/skills/$name" ]]; then
+      echo "$name current"
+    elif [[ -e "$link" || -L "$link" ]]; then
+      echo "$name differs"
+    else
+      echo "$name missing"
+    fi
+  done
+}
+
 case "$command_name" in
   install)
     args=("${install_args[@]}")
@@ -103,6 +122,13 @@ case "$command_name" in
         missing) echo "Not installed: $name"; rc=1 ;;
       esac
     done < <(compare)
+    while read -r name status; do
+      case "$status" in
+        current) echo "Claude skill link already current: $name" ;;
+        differs) echo "Claude skill link differs: $name (existing path kept)"; rc=1 ;;
+        missing) echo "Claude skill link missing: $name"; rc=1 ;;
+      esac
+    done < <(compare_skill_links)
     exit $rc
     ;;
   update)

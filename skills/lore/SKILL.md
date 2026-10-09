@@ -2,7 +2,7 @@
 name: lore
 description: "Load and maintain the user's memory across projects: the user profile, preferences and core rules at session start, the gotchas note for a stack you are about to touch, a reference when a location is needed, the coordination rules before briefing or running other agents, and a dated retrospective at the end of a session. Use when the user says retro, retrospective, lessons, fold, or asks to load, save or clean up their general memory. What is true in one project only belongs in that project's own memory (KIS), never here."
 metadata:
-  version: "0.4.0"
+  version: "0.4.1"
 ---
 
 # lore
@@ -87,10 +87,11 @@ Claude Code: `/lore:load`, `/lore:retro`, `/lore:fold`, `/lore:backend` (files i
 linked from `~/.claude/commands/lore`). Other hosts: name the step ("run the lore retro"). Each
 command file stands alone.
 
-- **Load** (session start): resolve the backend, replay any queued writes once it is reachable,
-  then read preferences, core rules and the profile, then only the gotchas notes the work touches
-  and references only when the task needs a location. Write each note read to its snapshot file
-  when the backend is an MCP.
+- **Load** (session start): resolve the backend, replay any queued writes once it is reachable
+  (before the load's own reads; the replay may look up each target note it writes), then read
+  preferences, core rules and the profile, then only the gotchas notes the work touches and
+  references only when the task needs a location. Write each note read to its snapshot file when the
+  backend is an MCP.
 - **Retrospective** (end of session, or when asked): turn this session's lessons into general
   ones; a bump for a rule already covered, a thought for a new one. A preference or a profile
   fact only after the user confirms it in words; a reference names where a thing lives and never

@@ -27,6 +27,8 @@ Commands:
 
   snapshot-write <note>                 write a snapshot note; content on stdin, first line "# Title"
   snapshot-read <note>                  print a snapshot note; a note never read here is reported missing
+  snapshot-render [--thought <date> <text>]
+                                        render a note's text (stdin) as a snapshot note
   queue-add <op> <note> <arg>           append one queued write (add-thought|bump-rule|create-note)
   queue-list                            list queued writes, oldest first, tab-separated
   queue-pop                             remove and print the oldest queued write
@@ -342,6 +344,44 @@ EOF
 
   bump-rule)
     op_bump_rule "${1:-}" "${2:-}"
+    ;;
+
+  snapshot-render)
+    r_dates=(); r_texts=()
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --thought)
+          [[ $# -ge 3 ]] || die "--thought needs: <date> <text>"
+          [[ "$2" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || die "a thought date must be YYYY-MM-DD: $2"
+          [[ -n "$3" && "$3" != *$'\n'* ]] || die "a thought is one line"
+          r_dates+=("$2"); r_texts+=("$3"); shift 3 ;;
+        *) die "unknown argument: $1" ;;
+      esac
+    done
+    r_src="$(mktemp "${TMPDIR:-/tmp}/lore-render.XXXXXX")"
+    cat > "$r_src"
+    if [[ ! -s "$r_src" ]]; then
+      rm -f "$r_src"; die "snapshot-render needs the note's text on stdin"
+    fi
+    r_first="$(head -n1 "$r_src")"
+    if [[ -z "$r_first" ]]; then
+      rm -f "$r_src"; die "the note's text must have a first line"
+    fi
+    if [[ "$r_first" == '# '* ]]; then
+      rm -f "$r_src"; die "the note's text already begins with a heading: $r_first"
+    fi
+    # The title once, as the H1, then the rest of the text byte for byte.
+    awk 'NR==1{ printf "# %s\n", $0; next } { print }' "$r_src"
+    rm -f "$r_src"
+    # Then the thoughts, in order, one dated line each (only when there is at least one).
+    r_i=0
+    if [[ ${#r_texts[@]} -gt 0 ]]; then
+      printf '\n## Thoughts\n\n'
+      while [[ $r_i -lt ${#r_texts[@]} ]]; do
+        printf -- '- %s: %s\n' "${r_dates[$r_i]}" "${r_texts[$r_i]}"
+        r_i=$(( r_i + 1 ))
+      done
+    fi
     ;;
 
   snapshot-write)

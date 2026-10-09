@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Install the skills in this repo (skills/*) into a user's home: ~/.agents/skills/<name>,
-# plus the Claude command link ~/.claude/commands/lore. Run from a source clone only.
+# plus the Claude discovery link ~/.claude/skills/<name> and the command link
+# ~/.claude/commands/lore. Run from a source clone only.
 set -euo pipefail
 
 usage() {
@@ -12,7 +13,7 @@ Options:
   --source <path>    Source repo root containing skills/<name>/SKILL.md. Also LORE_SKILL_SOURCE.
   --home <dir>       Home directory to install into. Defaults to $HOME.
   --force            Replace an existing ~/.agents/skills/<name> (a .tgz backup is kept).
-  --no-claude-link   Do not create ~/.claude/commands/lore.
+  --no-claude-link   Do not create the ~/.claude links (skills/lore and commands/lore).
   -h, --help         Show this help.
 USAGE
 }
@@ -78,6 +79,22 @@ for src in "$source_root"/skills/*/; do
   mv "$tmp/$name" "$dest"
   rmdir "$tmp"
   echo "Installed $name $version -> $dest"
+  # The Claude discovery link ~/.claude/skills/<name> -> ../../.agents/skills/<name>. A correct
+  # link is left alone; anything else at that path is the user's and is kept and reported, even
+  # under --force.
+  if [[ "$claude_link" == "true" ]]; then
+    link="$home_dir/.claude/skills/$name"
+    target="../../.agents/skills/$name"
+    mkdir -p "$home_dir/.claude/skills"
+    if [[ -L "$link" ]] && [[ "$(readlink "$link")" == "$target" ]]; then
+      echo "Claude skill link already current: $link"
+    elif [[ -e "$link" || -L "$link" ]]; then
+      echo "Kept your existing Claude skill path: $link (not overwritten)"
+    else
+      ln -s "$target" "$link"
+      echo "Claude skill link: $link -> $target"
+    fi
+  fi
 done
 
 if [[ "$claude_link" == "true" ]] && [[ -d "$skills_dir/lore/commands" ]]; then

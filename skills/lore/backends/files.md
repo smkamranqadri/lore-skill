@@ -75,6 +75,7 @@ the backend is back. `config` says which backend is configured; `pending.md` is 
 |---|---|
 | write a snapshot note | `lore-store.sh snapshot-write <note>` (the note on stdin) |
 | read a snapshot note | `lore-store.sh snapshot-read <note>` |
+| render a note for a snapshot | `lore-store.sh snapshot-render` (text on stdin; `--thought <date> <text>`) |
 | make one write while the backend is down | `lore-store.sh fallback-write <op> <note> <arg>` |
 | list the queue, oldest first | `lore-store.sh queue-list` |
 | finish the oldest queued write | `lore-store.sh queue-pop` (after the backend write succeeded) |
@@ -85,6 +86,11 @@ the backend is back. `config` says which backend is configured; `pending.md` is 
   `config` and `pending.md`: a snapshot never touches either.
 - **`snapshot-read`** reads one snapshot note. A note not read on this machine yet is reported
   `not in the snapshot`, never invented.
+- **`snapshot-render`** turns one note's text into the files-store shape for `snapshot-write`: the
+  title once as the H1, the rest of the text byte for byte, then `## Thoughts` with one dated line
+  per `--thought` (an MCP mapping names the exact call). It refuses an empty text, a blank first
+  line, a first line that already starts with `# `, and a `--thought` whose date is not `YYYY-MM-DD`
+  or whose text is not one line.
 - **`fallback-write`** applies one write to the snapshot and appends it to `pending.md`, so the two
   cannot drift. The op is `add-thought` (arg is the thought), `bump-rule` (arg is the exact match
   text) or `create-note` (arg is the title). **Fold is refused**, with a one-line reason: it is a

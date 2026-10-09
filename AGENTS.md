@@ -27,7 +27,7 @@ skills/lore/           the lore package, and what ships
   backends/            one mapping file per notes backend (ships files and tartib)
   scripts/             lore-store.sh, the files-backend and fallback mechanics
 scripts/               install-skill.sh, run from a source clone only
-tests/                 installer, store and fallback tests, never installed
+tests/                 installer, store, fallback and skill-link tests, never installed
 bootstrap.sh           one-command install, check, update
 kis/                   this repo's own project memory (read kis/state first)
 ```

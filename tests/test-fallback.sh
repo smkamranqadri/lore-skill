@@ -154,4 +154,56 @@ deny_msg "queue-list refused a missing store" "store not found" env HOME="$home2
 deny_msg "fallback-write refused a missing store" "store not found" env HOME="$home2" "$L" fallback-write add-thought x.md "x"
 deny_msg "switch-files refused a missing store" "store not found" env HOME="$home2" "$L" switch-files
 
+# 13. snapshot-render pins one rendering of a Tartib note: the title once as the H1, then the rest
+# of the text byte for byte, then ## Thoughts with one dated line per --thought.
+cat > "$tmp/note.txt" <<'EOF'
+Agents: preferences
+
+How the user wants work done.
+
+1. A rule. (×2)
+2. Another rule.
+EOF
+cat > "$tmp/expected.md" <<'EOF'
+# Agents: preferences
+
+How the user wants work done.
+
+1. A rule. (×2)
+2. Another rule.
+
+## Thoughts
+
+- 2026-10-08: first thought
+- 2026-10-09: second thought
+EOF
+"$L" snapshot-render --thought 2026-10-08 "first thought" --thought 2026-10-09 "second thought" \
+  < "$tmp/note.txt" > "$tmp/out.md" 2>"$log" || fail "snapshot-render exited non-zero: $(cat "$log")"
+cmp -s "$tmp/expected.md" "$tmp/out.md" || fail "snapshot-render bytes differ from the fixture: $(diff "$tmp/expected.md" "$tmp/out.md" || true)"
+# a Tartib text has no trailing newline; the bytes must not change
+printf '%s' "$(cat "$tmp/note.txt")" > "$tmp/note-nonl.txt"
+"$L" snapshot-render --thought 2026-10-08 "first thought" --thought 2026-10-09 "second thought" \
+  < "$tmp/note-nonl.txt" > "$tmp/out2.md" 2>"$log" || fail "snapshot-render (no trailing newline) exited non-zero"
+cmp -s "$tmp/out.md" "$tmp/out2.md" || fail "a missing trailing newline changed the rendered bytes"
+# the title is the H1 once, and never repeated as a plain line
+[[ "$(grep -c '^# Agents: preferences$' "$tmp/out.md")" -eq 1 ]] || fail "the H1 is not written exactly once"
+if grep -q '^Agents: preferences$' "$tmp/out.md"; then fail "the title is repeated as a plain line"; fi
+# no --thought means no ## Thoughts section
+"$L" snapshot-render < "$tmp/note.txt" > "$tmp/out3.md" 2>"$log" || fail "snapshot-render (no thoughts) exited non-zero"
+if grep -q '^## Thoughts$' "$tmp/out3.md"; then fail "an empty Thoughts section was written"; fi
+# and the render pipes into snapshot-write unchanged
+"$L" snapshot-render --thought 2026-10-08 "first thought" --thought 2026-10-09 "second thought" \
+  < "$tmp/note.txt" 2>"$log" | "$L" snapshot-write gotchas/rendered.md >"$log" 2>&1 \
+  || fail "the render did not pipe into snapshot-write: $(cat "$log")"
+cmp -s "$tmp/expected.md" "$store/gotchas/rendered.md" || fail "snapshot-write changed the rendered bytes"
+# guards
+deny_msg "snapshot-render refused empty input" "needs the note's text on stdin" "$L" snapshot-render < /dev/null
+printf '\nbody text\n' > "$tmp/blank-first.txt"
+deny_msg "snapshot-render refused a blank first line" "must have a first line" "$L" snapshot-render < "$tmp/blank-first.txt"
+printf '# Already headed\n\nbody\n' > "$tmp/already-h1.txt"
+deny_msg "snapshot-render refused text that already starts with a heading" "already begins with a heading" "$L" snapshot-render < "$tmp/already-h1.txt"
+deny_msg "snapshot-render refused a bad thought date" "must be YYYY-MM-DD" "$L" snapshot-render --thought 10-08-2026 x < "$tmp/note.txt"
+deny_msg "snapshot-render refused a multi-line thought" "a thought is one line" "$L" snapshot-render --thought 2026-10-08 "$(printf 'a\nb')" < "$tmp/note.txt"
+deny_msg "snapshot-render refused a --thought with a missing argument" "--thought needs" "$L" snapshot-render --thought 2026-10-08 < "$tmp/note.txt"
+
 echo "fallback tests: pass"

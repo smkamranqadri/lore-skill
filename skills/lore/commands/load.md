@@ -24,8 +24,9 @@ the mapping also says how a store that does not exist yet is created on first us
      (`commands/fold.md` refuses Fold while the backend is down). Then go on to step 4.
    - **Switch to files for good**: run `switch-files`; the snapshot becomes the store and the queue
      is cleared.
-3. If the backend is reachable and the queue is not empty, **replay** it now, before any read:
-   oldest entry first, apply its write through the mapping, and drop the entry only after that write
+3. If the backend is reachable and the queue is not empty, **replay** it now, before the load's own
+   note reads (steps 4 and 5). The replay may look up each target note it writes, to get its id (the
+   mapping's "find a note"). Apply the oldest entry first, and drop the entry only after that write
    succeeded; on the first failure stop, keep that entry and every later one, and show the user what
    failed.
 4. **read a note with thoughts** for `preferences.md`, `core-rules.md` and `profile.md`.
