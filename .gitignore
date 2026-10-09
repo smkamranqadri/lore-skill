@@ -1,0 +1,6 @@
+__pycache__/
+.DS_Store
+
+# Orchestrator state and Command Code's per-machine folder, never part of the source repo
+.orch/
+.commandcode/
