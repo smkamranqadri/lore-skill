@@ -1,9 +1,9 @@
 # Current
 
 - Branch: `main`, tracking `origin/main` at `https://github.com/smkamranqadri/lore-skill`
-  (private until the owner says otherwise). Commits: `5f69f00` phase 1, `39486f4` phase 2a, the
+  (public since 2026-10-09, at the owner's word, after a full-history scan for secrets and personal data). Commits: `5f69f00` phase 1, `39486f4` phase 2a, the
   phase 2 switch sync, `8ccb83f` phase 3 (0.3.0), `825a86b` phase 4 (0.4.0), `370d7fe` 0.4.1.
-  Pushed through `8ccb83f`; later commits are local until the owner says push.
+  Pushed through `8bc3e07` and this sync.
 - Task: none in progress. The plan `../intent/plan-2026-10-09-lore.md` is complete: all five
   phases done 2026-10-09.
 - Live (2026-10-09): lore **0.4.1** at `~/.agents/skills/lore`; `./bootstrap.sh check --source .`
@@ -18,4 +18,4 @@
 - Not proved: the replay wording and the rendering pin are prose around a script (the fixture
   proves the script's bytes, not that an agent passes the right arguments). The gotchas slug is not
   pinned by the mapping; the refresh used title-derived slugs that match the existing files.
-- Next: push at the owner's word. Possible follow-up: pin the gotchas slugs in the mapping table.
+- Next: none due. Possible follow-up: pin the gotchas slugs in the mapping table.
