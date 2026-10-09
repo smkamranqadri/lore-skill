@@ -2,7 +2,7 @@
 name: lore
 description: "Load and maintain the user's memory across projects: preferences and core rules at session start, the gotchas note for a stack you are about to touch, the coordination rules before briefing or running other agents, and a dated retrospective at the end of a session. Use when the user says retro, retrospective, lessons, fold, or asks to load, save or clean up their general memory. What is true in one project only belongs in that project's own memory (KIS), never here."
 metadata:
-  version: "0.1.0"
+  version: "0.2.0"
 ---
 
 # lore
@@ -17,7 +17,7 @@ host's built-in memory.
 Notes are Markdown, one per file, in `~/.agents/memory/`:
 
 ```text
-config             backend: files | tartib | <name>, plus per-backend settings
+config             backend: files | tartib | <name>, plus per-backend settings (space)
 start-here.md      the index: each note, and when to read it
 preferences.md     how the user wants work done
 core-rules.md      rules that cost the most when broken
@@ -30,10 +30,36 @@ pending.md         writes queued while a backend is down    (phase 4)
 
 ## Backends
 
-A backend maps the operations of lore onto a notes store, so any MCP can be attached by writing
-one file under `backends/`. This release ships **`backends/files.md`**, which needs nothing
-installed and serves the store above directly. Read the mapping for the backend named in
-`config` before acting; when it is unavailable, say so and work from the files snapshot.
+A backend maps lore's operations onto a notes store, so any MCP can be attached by writing one
+file under `backends/`. This release ships **`files`** (the store above, nothing else installed)
+and **`tartib`** (the configured space, over the Tartib MCP tools). `files.md` and `tartib.md`
+name the concrete call behind each operation and its quirks.
+
+Resolve the backend before acting:
+
+```bash
+lore-store.sh config          # backend: <name>, then space: <name> when set
+lore-store.sh config mapping  # the mapping file to read
+```
+
+No `config`, or `backend: files`, means the files backend: everything runs on `~/.agents/memory/`.
+When the configured backend is unavailable, say so in one line and work from the files snapshot;
+never create a Tartib space or a store to make it reachable.
+
+## Operations
+
+Every backend maps these eight. Use the name, then read the mapping for the call:
+
+| Operation | What it does |
+|---|---|
+| reachable? | can this backend be read right now (read-only) |
+| find a note | locate one note by its identity |
+| read a note with thoughts | the note's text and its unfiled thoughts |
+| add a thought | append one dated lesson to a note |
+| change a few words (a bump) | raise one rule's `(×N)` in place |
+| rewrite a note (Fold) | replace a note's text with the folded version |
+| delete a thought | remove one folded thought |
+| create a note | make a new note, never a new space |
 
 ## The notes, and when to read them
 
@@ -53,10 +79,10 @@ Claude Code: `/lore:load`, `/lore:retro`, `/lore:fold` (files in `commands/`, li
 `~/.claude/commands/lore`). Other hosts: name the step ("run the lore retro"). Each command file
 stands alone.
 
-- **Load** (session start): make sure the store exists, read preferences and core rules, then
-  only the gotchas notes the work touches. Read-only after setup.
+- **Load** (session start): resolve the backend, read preferences and core rules, then only the
+  gotchas notes the work touches. Read-only after setup.
 - **Retrospective** (end of session, or when asked): turn this session's lessons into general
-  ones; bump a rule already covered, add a thought for a new one. A preference only after the
+  ones; a bump for a rule already covered, a thought for a new one. A preference only after the
   user confirms it in words; a new stack's gotchas note only when a stack has none.
 - **Fold** (a note with 10 or more thoughts, or when asked): merge the thoughts into the note
   text, read it back, then delete them. Never delete a thought whose content is not in the text

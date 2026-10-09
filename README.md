@@ -29,10 +29,12 @@ to install somewhere other than `$HOME`.
 
 Claude Code: `/lore:load`, `/lore:retro`, `/lore:fold`. Codex and others: "run the lore load
 step" and follow `~/.agents/skills/lore/commands/<name>.md`. The method is in
-`skills/lore/SKILL.md`; the notes backend in use is mapped in `skills/lore/backends/`.
+`skills/lore/SKILL.md`; the backend in use is resolved from `~/.agents/memory/config` and mapped
+in `skills/lore/backends/<backend>.md`.
 
-The store is `~/.agents/memory/`, one Markdown file per note. With no notes backend configured,
-lore runs entirely on those files.
+Two backends ship: `files` (the store below, nothing else installed) and `tartib` (the configured
+space in Tartib, over its MCP tools). The store is `~/.agents/memory/`, one Markdown file per note.
+With no config, or `backend: files`, lore runs entirely on those files.
 
 ## Development
 

@@ -7,22 +7,22 @@ argument-hint: [optional stacks or task, e.g. "flutter" or "coordinating agents"
 
 Run the Load step of lore. Read-only once the store exists; change nothing else.
 
-Full instructions: `~/.agents/skills/lore/SKILL.md`. Backend in use: read `~/.agents/memory/config`,
-then its mapping under `~/.agents/skills/lore/backends/` (the default is `files.md`). For the files
-backend the mechanics are `~/.agents/skills/lore/scripts/lore-store.sh`, called below as
-`lore-store.sh`.
+Full instructions: `~/.agents/skills/lore/SKILL.md`. Resolve the backend first:
+`~/.agents/skills/lore/scripts/lore-store.sh config` prints the backend (and space, when set), and
+`… config mapping` prints the mapping file. The operations below are the ones that mapping defines;
+the mapping also says how a store that does not exist yet is created on first use.
 
 ## Steps
 
-1. Make sure the store exists: `lore-store.sh init` (creates the starter notes on first use; it
-   never overwrites a note).
-2. Read `preferences.md` and `core-rules.md`, with any thoughts on them.
-3. From `$ARGUMENTS`, or from the repository and the task in front of you, pick the gotchas notes
-   that apply and read those only. Read `coordinating.md` only if you will brief or run other
-   agents.
-4. Read nothing else.
-5. If the configured backend is not available, say so in one line and work from the files
-   snapshot.
+1. Read the config, then the mapping file of the configured backend.
+2. **reachable?** — if the backend is not reachable (or its tools are absent in this session), say
+   so in one line and work from the files snapshot. Never create a store or a space to make it
+   reachable.
+3. **read a note with thoughts** for `preferences.md` and `core-rules.md`.
+4. **read a note with thoughts** for the gotchas notes that apply, chosen from `$ARGUMENTS`, the
+   repository and the task in front of you. Read `coordinating.md` only if you will brief or run
+   other agents.
+5. Read nothing else.
 
 ## Report
 

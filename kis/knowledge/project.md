@@ -45,3 +45,11 @@ Phase 1 (2026-10-09) ships `skills/lore/SKILL.md`, the `load`/`retro`/`fold` com
 `backends/files.md`, and `scripts/lore-store.sh` (subcommands: init, list, read, sha, create,
 add-thought, bump-rule, fold-done). Note format: one rule per source line, `(×N)` at the end of
 a rule, thoughts under `## Thoughts`. Tests in `tests/` install into a temporary HOME.
+
+Phase 2a (2026-10-09, version 0.2.0) ships `backends/tartib.md` and a `config` subcommand on
+`lore-store.sh` that resolves the backend, space and mapping file from `~/.agents/memory/config`
+(no config, or `backend: files`, means the files backend). SKILL.md and the commands now name the
+eight operations and read the mapping of the configured backend instead of naming tools. The live
+Tartib space `ai-agents` holds 12 notes; the ones lore maps: `Agents: start here` (333),
+`Agents: preferences` (323), `Agents: core rules` (324), `Agents: coordinating parallel agents`
+(325), and the `Gotchas: …` notes. Lore uses the configured space only; it never creates one.

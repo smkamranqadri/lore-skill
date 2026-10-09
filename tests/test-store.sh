@@ -120,4 +120,25 @@ grep -q 'Usage:' "$log" || fail "an empty command should print usage"
 if "$L" bogus >"$log" 2>&1; then fail "an unknown command should exit non-zero"; fi
 grep -q 'Usage:' "$log" || fail "an unknown command should print usage"
 
+# 11. config resolution: backend, space, mapping; files is the default
+cfg="$tmp/cfgstore"; mkdir -p "$cfg"
+ok "$L" --store "$cfg" config
+grep -q '^backend: files$' "$log" || fail "config: no config should default to files"
+if grep -q '^space:' "$log"; then fail "config: space should be omitted when unset"; fi
+ok "$L" --store "$cfg" config mapping
+grep -q 'backends/files.md$' "$log" || fail "config: files mapping not resolved"
+test -f "$(cat "$log")" || fail "config: files mapping file missing"
+printf '# a comment\nbackend: tartib\nspace: ai-agents\n' > "$cfg/config"
+ok "$L" --store "$cfg" config
+grep -q '^backend: tartib$' "$log" || fail "config: backend not read"
+grep -q '^space: ai-agents$' "$log" || fail "config: space not read"
+ok "$L" --store "$cfg" config backend; [[ "$(cat "$log")" == "tartib" ]] || fail "config backend value wrong"
+ok "$L" --store "$cfg" config space; [[ "$(cat "$log")" == "ai-agents" ]] || fail "config space value wrong"
+ok "$L" --store "$cfg" config mapping
+grep -q 'backends/tartib.md$' "$log" || fail "config: tartib mapping not resolved"
+test -f "$(cat "$log")" || fail "config: tartib mapping file missing"
+printf 'backend: nope\n' > "$cfg/config"
+deny_msg "config mapping refused an unknown backend" "no mapping file for backend: nope" "$L" --store "$cfg" config mapping
+deny_msg "config refused an unknown key" "unknown config key" "$L" --store "$cfg" config bogus
+
 echo "store tests: pass"

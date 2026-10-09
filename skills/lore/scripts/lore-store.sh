@@ -4,6 +4,8 @@
 set -euo pipefail
 
 store="${LORE_STORE:-${HOME}/.agents/memory}"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+lore_dir="$(cd "$script_dir/.." && pwd -P)"
 
 die() { echo "Error: $*" >&2; exit 1; }
 
@@ -13,6 +15,7 @@ Usage:
   lore-store.sh [--store <dir>] <command> [args]
 
 Commands:
+  config [backend|space|store|mapping]  print the resolved backend, space or mapping file
   init                                  create the store and its starter notes (never overwrites)
   list                                  list note names, one per line
   read <note>                           print a note
@@ -67,6 +70,24 @@ file_sha() {
   fi
 }
 
+# config_value <key>: the value of "key: value" in <store>/config, trimmed, empty when absent.
+config_value() {
+  local key="$1" line value=""
+  if [[ -f "$store/config" ]]; then
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      line="${line%%#*}"
+      line="${line#"${line%%[![:space:]]*}"}"
+      line="${line%"${line##*[![:space:]]}"}"
+      [[ "$line" == "$key:"* ]] || continue
+      value="${line#"$key:"}"
+      value="${value#"${value%%[![:space:]]*}"}"
+      value="${value%"${value##*[![:space:]]}"}"
+      break
+    done < "$store/config"
+  fi
+  printf '%s' "$value"
+}
+
 # write_if_absent <relative-path>   (content on stdin): creates the file only when absent, so
 # init is safe to run at every load and never overwrites an edited note.
 write_if_absent() {
@@ -78,6 +99,28 @@ write_if_absent() {
 }
 
 case "$cmd" in
+  config)
+    key="${1:-}"
+    backend="$(config_value backend)"
+    [[ -n "$backend" ]] || backend="files"
+    space="$(config_value space)"
+    mapping="$lore_dir/backends/$backend.md"
+    case "$key" in
+      "")
+        printf 'backend: %s\n' "$backend"
+        if [[ -n "$space" ]]; then printf 'space: %s\n' "$space"; fi
+        ;;
+      backend) printf '%s\n' "$backend" ;;
+      space) printf '%s\n' "$space" ;;
+      store) printf '%s\n' "$store" ;;
+      mapping)
+        [[ -f "$mapping" ]] || die "no mapping file for backend: $backend (looked at $mapping)"
+        printf '%s\n' "$mapping"
+        ;;
+      *) die "unknown config key: $key" ;;
+    esac
+    ;;
+
   init)
     created=()
     write_if_absent config <<'EOF'

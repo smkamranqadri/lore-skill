@@ -10,7 +10,8 @@ and `../commands/`.
 ## Reachability (read-only)
 
 The store folder exists: `test -d ~/.agents/memory`. No network, no tool lookup. `list` refuses
-with `store not found` when it is absent; `init` creates it.
+with `store not found` when it is absent. A load runs `init` first, so an empty store is created
+on first use with its starter notes.
 
 ## Note format
 
