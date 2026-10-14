@@ -97,3 +97,18 @@ live load from ~171k chars (5 `search` + 4 `get_item`) or ~139k (one listing) to
 three notes, and drops the ~30k of skill internals a load used to read. Proved by the new
 `tests/test-load-path.sh` (4 guards mutation-checked), `tests/run.sh`, a clean live
 `bootstrap.sh update`/`check` to 0.5.0, and `.orch/lore-ids/proof.txt`.
+
+0.6.0 (2026-10-14, branch `rules-split`) splits the always-loaded core. `Agents: core rules` (74
+numbered rules, 17,860 chars) becomes a small 13-rule core plus four on-demand topic notes:
+`core-verify.md` (`Agents: core rules - verify and test`), `core-production.md` (`Agents: core rules
+- production, data and secrets`), `core-tools.md` (`Agents: core rules - git and tools`) and
+`core-user.md` (`Agents: core rules - working with the user`). Every rule keeps its number and text
+byte-for-byte (a rule moves, it is not rewritten), so a cross-reference elsewhere ("core rule 27")
+still resolves through an index line carried by the core. `lore-store.sh` maps the four new titles in
+`default_title`, and `load-plan` refuses a `--note` outside the known set (a mapped note,
+`gotchas/*`, `core-*.md`). The default load drops from 27,007 chars to 14,964, and the core is 5,817
+loaded (<= 6,000). Proved by new guards in `tests/test-load-path.sh` (the four topic notes, a
+source-scanning `core-*.md` count against the mapping, `--note` refusal) and `tests/test-store.sh`
+(the starter lists the topic notes), each mutation-checked, and by `.orch/rules-split/check-split.sh`
+(74/74 covered exactly once, byte-identical). The Tartib migration is drafted in
+`orch-skill .orch/rules-split/migration.md`; it is **not applied** by the builder.

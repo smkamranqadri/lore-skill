@@ -21,6 +21,10 @@ while `search` returns the full text of every fuzzy hit and listing the space re
 | start-here.md | `Agents: start here` |
 | preferences.md | `Agents: preferences` |
 | core-rules.md | `Agents: core rules` |
+| core-verify.md | `Agents: core rules - verify and test` |
+| core-production.md | `Agents: core rules - production, data and secrets` |
+| core-tools.md | `Agents: core rules - git and tools` |
+| core-user.md | `Agents: core rules - working with the user` |
 | coordinating.md | `Agents: coordinating parallel agents` |
 | gotchas/<stack>.md | `Gotchas: <stack>` |
 | profile.md | `User: profile` |
@@ -73,9 +77,13 @@ is current. No hit carries the title: report `<note> not found in <space>`; neve
 `lore-store.sh load-plan [--note <note>]...` prints the whole load in one call: for each note the
 read to make and the title to check (`get_item <id>` when pinned, `MISSING` when not, `read <note>`
 on the files backend), then the queue length and whether each note is already in the snapshot. The
-default is preferences.md, core-rules.md and profile.md; `--note` adds a gotchas note for a stack in
-play, coordinating.md only when briefing or running other agents, references.md only when the task
-needs a location. `lore-store.sh load-size <note>...` prints the characters read against the budget
+default is preferences.md, core-rules.md and profile.md; `--note` adds a core topic note
+(core-verify.md for anything to check; core-production.md for production, live data, servers,
+deploys, secrets or a destructive delete; core-tools.md for many edits, git, a formatter or linter,
+or batched reads; core-user.md for asking the user, recording decisions, writing State or closing),
+a gotchas note for a stack in play, coordinating.md only when briefing or running other agents,
+references.md only when the task needs a location. A `--note` outside that known set is refused.
+`lore-store.sh load-size <note>...` prints the characters read against the budget
 (`budget:` in the config, default 60000) — the load's size line. A load reads this section no
 further than these two calls.
 

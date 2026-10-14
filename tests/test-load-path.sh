@@ -74,6 +74,44 @@ grep -q '^MISSING coordinating.md : Agents: coordinating parallel agents' "$log"
   || fail "load-plan did not report an unpinned note with the one-search fallback"
 grep -q 'one search' "$log" || fail "the MISSING line did not name the one-search fallback"
 
+# 5b. the four core topic notes: unpinned -> MISSING with the title, pinned -> get_item by id.
+core_title() {
+  case "$1" in
+    core-verify.md)     echo 'Agents: core rules - verify and test' ;;
+    core-production.md) echo 'Agents: core rules - production, data and secrets' ;;
+    core-tools.md)      echo 'Agents: core rules - git and tools' ;;
+    core-user.md)       echo 'Agents: core rules - working with the user' ;;
+  esac
+}
+core_id=940
+for note in core-verify.md core-production.md core-tools.md core-user.md; do
+  ct="$(core_title "$note")"
+  ok "$L" load-plan --note "$note"
+  grep -Fqx -- "MISSING $note : $ct${tab}# one search \"$ct\", then ids-pin $note <id>" "$log" \
+    || fail "load-plan did not report an unpinned $note with its one-search fallback"
+  ok "$L" ids-pin "$note" "$core_id"
+  ok "$L" load-plan --note "$note"
+  grep -Fqx -- "get_item $core_id${tab}# $note : $ct" "$log" \
+    || fail "load-plan did not name $note by its pinned id"
+  core_id=$(( core_id + 1 ))
+done
+
+# 5c. source-scanning guard: the core-*.md rows in the mapping equal the cases default_title knows,
+# and both equal the measured count (5: core-rules + the four topic notes), so it cannot pass by
+# finding nothing.
+map_core="$(grep -cE '^\| core-[a-z-]+\.md \|' "$tartib_map")"
+script_core="$(grep -cE '^    core-[a-z-]+\.md\)' "$L")"
+[[ "$map_core" -eq 5 ]] || fail "expected 5 core-*.md rows in the mapping, found $map_core"
+[[ "$script_core" -eq 5 ]] || fail "expected 5 core-*.md cases in default_title, found $script_core"
+[[ "$map_core" -eq "$script_core" ]] \
+  || fail "the mapping lists $map_core core notes, default_title knows $script_core"
+
+# 5d. an unknown --note is refused; a gotchas note is accepted; a note escaping the store is refused.
+deny_msg "load-plan refused an unknown note" "unknown note for a load" "$L" load-plan --note bogus.md
+ok "$L" load-plan --note gotchas/x.md
+grep -q 'gotchas/x.md' "$log" || fail "load-plan did not accept a gotchas note"
+deny "load-plan refused a note escaping the store" "$L" load-plan --note ../evil.md
+
 # 6. load-plan reports the queue and the snapshot check.
 printf '# Pending writes\n\n- p1\t2026-10-09\tadd-thought\tpreferences.md\tx\n' > "$store/pending.md"
 printf '# Preferences\n\nrule\n' > "$store/preferences.md"

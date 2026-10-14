@@ -16,9 +16,20 @@ lore-store.sh load-plan --note gotchas/<stack>.md --note coordinating.md
 ```
 
 (`lore-store.sh` is `~/.agents/skills/lore/scripts/lore-store.sh`.) The default is exactly
-preferences.md, core-rules.md and profile.md. `--note` adds one note: name a gotchas note only for
-a stack the work touches, `coordinating.md` only when you will brief or run other agents, and
-`references.md` only when the task needs to locate a repo, tool or service. Never name the rest.
+preferences.md, core-rules.md and profile.md. The core is small on purpose: the rules that are not
+needed every session live in four topic notes, each added with `--note` only when its moment
+applies.
+
+| `--note` this | when |
+|---|---|
+| `core-verify.md` | Anything to check: tests, guards, debugging, a refactor or migration, a UI change, a measurement, or a deploy to prove. |
+| `core-production.md` | Production or live data, a server, a deploy, secrets or credentials, a destructive delete, or SSH and firewall settings. |
+| `core-tools.md` | Many files or scripts edited, git or a formatter or linter run, or large reads batched. |
+| `core-user.md` | Asking the user, recording a decision, writing State or KIS, or closing and handing off. |
+
+Also `--note` a gotchas note only for a stack the work touches, `coordinating.md` only when you
+will brief or run other agents, and `references.md` only when the task needs to locate a repo, tool
+or service. Never name anything else: `load-plan` refuses a note outside the known set.
 
 ## Steps
 

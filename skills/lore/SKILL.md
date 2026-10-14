@@ -2,7 +2,7 @@
 name: lore
 description: "Load and maintain the user's memory across projects: the user profile, preferences and core rules at session start, the gotchas note for a stack you are about to touch, a reference when a location is needed, the coordination rules before briefing or running other agents, and a dated retrospective at the end of a session. Use when the user says retro, retrospective, lessons, fold, or asks to load, save or clean up their general memory. What is true in one project only belongs in that project's own memory (KIS), never here."
 metadata:
-  version: "0.5.0"
+  version: "0.6.0"
 ---
 
 # lore
@@ -20,7 +20,11 @@ Notes are Markdown, one per file, in `~/.agents/memory/`:
 config             backend: files | tartib | <name>, plus per-backend settings (space)
 start-here.md      the index: each note, and when to read it
 preferences.md     how the user wants work done
-core-rules.md      rules that cost the most when broken
+core-rules.md      the small always-loaded core: the rules every session needs
+core-verify.md     core rules on verification, tests and debugging (on demand)
+core-production.md core rules on production, data and secrets (on demand)
+core-tools.md      core rules on git and tools (on demand)
+core-user.md       core rules on working with the user (on demand)
 coordinating.md    briefing, running and merging other agents
 gotchas/<stack>.md a stack the session touches
 profile.md         who the user is
@@ -75,10 +79,18 @@ Every backend maps these eight. Use the name, then read the mapping for the call
 | `start-here.md` | Anything below is unclear; it is the index and the method. |
 | `profile.md` | Always, at session start. |
 | `preferences.md` | Always, at session start. |
-| `core-rules.md` | Always, at session start. |
+| `core-rules.md` | Always, at session start: the small core, the rules every session needs. |
+| `core-verify.md` | The task has anything to check: tests, guards, debugging, a refactor or migration, a UI change, a measurement, or a deploy to prove. |
+| `core-production.md` | The task touches production or live data, a server, a deploy, secrets or credentials, a destructive delete, or SSH and firewall settings. |
+| `core-tools.md` | The task edits many files or scripts, runs git or a formatter or linter, or batches large reads. |
+| `core-user.md` | You ask the user, record a decision, write State or KIS, or close and hand off. |
 | `coordinating.md` | You brief, run or merge other agents. |
 | `gotchas/<stack>.md` | The work touches that stack. |
 | `references.md` | The task needs to locate a repo, tool or service. |
+
+The four `core-*.md` topic notes are the rest of the core rules, split out so a load reads only
+what the task needs. Every rule keeps its number and text, so a cross-reference elsewhere ("core
+rule 27") still resolves: the core carries an index line naming where each range lives.
 
 A load reads each mapped note by its **pinned id** (the store's `ids` file): one `get_item <id>`,
 never a search of the space. A pin that is absent or stale is recovered with one search and
@@ -96,7 +108,8 @@ command file stands alone.
   and title, the queue length and the snapshot check; read by those ids, recover an absent or stale
   pin with one `search`, then `load-size` prints the load's size line. Replay any queued writes once
   the backend is reachable, before the load's own reads. The default is preferences, core rules and
-  the profile; a gotchas note only for a stack the work touches, `coordinating.md` only when briefing
+  the profile; add a core topic note (`--note core-verify.md` and so on) when its `when to read`
+  applies, a gotchas note only for a stack the work touches, `coordinating.md` only when briefing
   or running other agents, `references.md` only when the task needs a location. Write each note read
   to its snapshot file when the backend is an MCP.
 - **Retrospective** (end of session, or when asked): turn this session's lessons into general

@@ -44,7 +44,7 @@ rule, its `(×N)` marker and the text a bump matches all live on one line.
 | reachable? | `test -d ~/.agents/memory` |
 | find a note | `lore-store.sh list` |
 | read a note with thoughts | `lore-store.sh read <note>` |
-| plan a load | `lore-store.sh load-plan [--note <note>]...` (the `read` for each note) |
+| plan a load | `lore-store.sh load-plan [--note <note>]...` (the `read` for each note; the default is preferences, core rules and the profile, and `--note` adds a core topic note — `core-verify.md`, `core-production.md`, `core-tools.md` or `core-user.md` — a gotchas note, `coordinating.md` or `references.md`) |
 | a load's size | `lore-store.sh load-size <note>...` (chars read, against the budget) |
 | add a thought | `lore-store.sh add-thought <note> <text>` |
 | change a few words (a bump) | `lore-store.sh bump-rule <note> <match>` |

@@ -20,6 +20,9 @@ Commands:
   ids-pin <note> <id> [title]           pin one note's Tartib id (a gotchas pin needs its title)
   load-plan [--note <note>]...          print what a load reads: ids, queue and snapshot check
   load-size <note>...                   print the chars a load read, against the budget
+                                        --note: a mapped note, gotchas/<stack>.md or a core-*.md
+                                        topic note (core-verify, core-production, core-tools,
+                                        core-user); anything else is refused
   init                                  create the store and its starter notes (never overwrites)
   list                                  list note names, one per line
   read <note>                           print a note
@@ -235,13 +238,25 @@ ids_get() {
 # default_title <note>: the fixed title of a mapped note, or nothing for a gotchas or unknown note.
 default_title() {
   case "$1" in
-    start-here.md)   printf 'Agents: start here' ;;
-    preferences.md)  printf 'Agents: preferences' ;;
-    core-rules.md)   printf 'Agents: core rules' ;;
-    coordinating.md) printf 'Agents: coordinating parallel agents' ;;
-    profile.md)      printf 'User: profile' ;;
-    references.md)   printf 'User: references' ;;
+    start-here.md)      printf 'Agents: start here' ;;
+    preferences.md)     printf 'Agents: preferences' ;;
+    core-rules.md)      printf 'Agents: core rules' ;;
+    core-verify.md)     printf 'Agents: core rules - verify and test' ;;
+    core-production.md) printf 'Agents: core rules - production, data and secrets' ;;
+    core-tools.md)      printf 'Agents: core rules - git and tools' ;;
+    core-user.md)       printf 'Agents: core rules - working with the user' ;;
+    coordinating.md)    printf 'Agents: coordinating parallel agents' ;;
+    profile.md)         printf 'User: profile' ;;
+    references.md)      printf 'User: references' ;;
   esac
+}
+
+# load_note_ok <note>: a load may name a mapped note, a gotchas note or a core-*.md topic note.
+# Anything else (a typo, a stray path) is refused, so a load cannot silently read nothing.
+load_note_ok() {
+  [[ -n "$(default_title "$1")" ]] && return 0
+  case "$1" in gotchas/*.md|core-*.md) return 0 ;; esac
+  return 1
 }
 
 op_ids_pin() {
@@ -274,7 +289,11 @@ op_load_plan() {
   notes=(preferences.md core-rules.md profile.md)
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --note) [[ $# -ge 2 ]] || die "--note requires a note name"; notes+=("$2"); shift 2 ;;
+      --note)
+        [[ $# -ge 2 ]] || die "--note requires a note name"
+        safe_note "$2"
+        load_note_ok "$2" || die "unknown note for a load: $2 (a mapped note, gotchas/<stack>.md or core-*.md)"
+        notes+=("$2"); shift 2 ;;
       *) die "unknown load-plan argument: $1" ;;
     esac
   done
@@ -375,10 +394,14 @@ profile and references. What is true in one project only belongs in that project
 Read at every session start:
 
 - `preferences.md` — how the user wants work done.
-- `core-rules.md` — the rules that cost the most when broken.
+- `core-rules.md` — the small core: the rules every session needs.
 
 Read when they apply, and nothing else:
 
+- `core-verify.md` — the task has anything to check: tests, guards, debugging, a refactor or migration, a UI change, a measurement, or a deploy to prove.
+- `core-production.md` — the task touches production or live data, a server, a deploy, secrets or credentials, a destructive delete, or SSH and firewall settings.
+- `core-tools.md` — the task edits many files or scripts, runs git or a formatter or linter, or batches large reads.
+- `core-user.md` — asking the user, recording a decision, writing State or KIS, or closing and handing off.
 - `gotchas/<stack>.md` — when the work touches that stack.
 - `coordinating.md` — when you brief, run or merge other agents.
 EOF

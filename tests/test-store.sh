@@ -34,6 +34,7 @@ grep -q '^# Profile$' "$store/profile.md" || fail "profile starter note has the 
 grep -q 'confirms it in words, as for preferences\.$' "$store/profile.md" || fail "profile starter note is missing its rule"
 grep -q '^# References$' "$store/references.md" || fail "references starter note has the wrong title"
 grep -q 'never a secret, address or value\.$' "$store/references.md" || fail "references starter note is missing its rule"
+grep -q '^- `core-verify.md` ' "$store/start-here.md" || fail "start-here starter does not list the core topic notes"
 grep -q '^Created ' "$log" || fail "init did not report what it created"
 
 # 2. init is idempotent and never overwrites (mutation would clobber the edit)
