@@ -16,6 +16,10 @@ Usage:
 
 Commands:
   config [backend|space|store|mapping]  print the resolved backend, space or mapping file
+  ids-list                              print pinned Tartib ids as "<note><TAB><id>"
+  ids-pin <note> <id> [title]           pin one note's Tartib id (a gotchas pin needs its title)
+  load-plan [--note <note>]...          print what a load reads: ids, queue and snapshot check
+  load-size <note>...                   print the chars a load read, against the budget
   init                                  create the store and its starter notes (never overwrites)
   list                                  list note names, one per line
   read <note>                           print a note
@@ -216,6 +220,97 @@ op_create_note() {
   echo "Created $rel"
 }
 
+# --- pinned ids: the load path's one lookup ----------------------------------------------------
+# The store's ids file maps one note to one Tartib item id, "<note><TAB><id>" and, when the
+# note's title is not fixed, a third field with its exact first line (a gotchas note's identity). Ids
+# live in the store, never in a shipped mapping, so a skill update cannot clobber them. See
+# ../backends/tartib.md. The load path reads a note by its id; it never searches or lists.
+
+# ids_get <note>: print the pinned "<id><TAB><title>" for a note, or nothing.
+ids_get() {
+  [[ -f "$store/ids" ]] || return 0
+  awk -F"$tab" -v n="$1" '$1 == n { print $2 "\t" $3; exit }' "$store/ids"
+}
+
+# default_title <note>: the fixed title of a mapped note, or nothing for a gotchas or unknown note.
+default_title() {
+  case "$1" in
+    start-here.md)   printf 'Agents: start here' ;;
+    preferences.md)  printf 'Agents: preferences' ;;
+    core-rules.md)   printf 'Agents: core rules' ;;
+    coordinating.md) printf 'Agents: coordinating parallel agents' ;;
+    profile.md)      printf 'User: profile' ;;
+    references.md)   printf 'User: references' ;;
+  esac
+}
+
+op_ids_pin() {
+  local rel="$1" id="$2" title="${3:-}"
+  require_store
+  safe_note "$rel"
+  [[ "$rel" != *[[:space:]]* ]] || die "a note name has no spaces: $rel"
+  [[ "$id" =~ ^[0-9]+$ ]] || die "a Tartib id is a number: $id"
+  if [[ "$rel" == gotchas/* && -z "$title" ]]; then
+    die "a gotchas pin needs its title (its exact first line): ids-pin $rel $id \"Gotchas: <stack>\""
+  fi
+  if [[ ! -f "$store/ids" ]]; then
+    printf '# Pinned Tartib ids: "<note><TAB><id>", and a third field for a note whose title is not fixed.\n' > "$store/ids"
+  fi
+  awk -F"$tab" -v n="$rel" -v i="$id" -v t="$title" '
+    $1 == n { print (t == "" ? n "\t" i : n "\t" i "\t" t); found = 1; next }
+    { print }
+    END { if (!found) print (t == "" ? n "\t" i : n "\t" i "\t" t) }
+  ' "$store/ids" > "$store/ids.tmp"
+  mv "$store/ids.tmp" "$store/ids"
+  if [[ -n "$title" ]]; then echo "Pinned $rel $id ($title)"; else echo "Pinned $rel $id"; fi
+}
+
+# op_load_plan [--note <note>]...: the one read a load makes per note, with its title to check, the
+# queue length and whether each note is already in the snapshot. Default: preferences, core rules
+# and the profile. It names no mapping and no search.
+op_load_plan() {
+  local backend note pinned id title q
+  local -a notes
+  notes=(preferences.md core-rules.md profile.md)
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --note) [[ $# -ge 2 ]] || die "--note requires a note name"; notes+=("$2"); shift 2 ;;
+      *) die "unknown load-plan argument: $1" ;;
+    esac
+  done
+  require_store
+  backend="$(config_value backend)"; [[ -n "$backend" ]] || backend="files"
+  for note in "${notes[@]}"; do
+    safe_note "$note"
+    pinned="$(ids_get "$note")"
+    id=""; title=""
+    if [[ -n "$pinned" ]]; then
+      id="${pinned%%$tab*}"
+      [[ "$pinned" == *$tab* ]] && title="${pinned#*$tab}"
+    fi
+    [[ -n "$title" ]] || title="$(default_title "$note")"
+    if [[ "$backend" == files ]]; then
+      printf 'read %s\t# %s\n' "$note" "${title:-$note}"
+    elif [[ -n "$id" ]]; then
+      printf 'get_item %s\t# %s : %s\n' "$id" "$note" "${title:-$note}"
+    elif [[ -n "$title" ]]; then
+      printf 'MISSING %s : %s\t# one search "%s", then ids-pin %s <id>\n' "$note" "$title" "$title" "$note"
+    else
+      printf 'MISSING %s\t# one search for its first line, then ids-pin %s <id>\n' "$note" "$note"
+    fi
+  done
+  if [[ "$backend" != files ]]; then
+    q=0
+    if [[ -f "$store/pending.md" ]]; then
+      q="$(awk '/^- /{ c++ } END{ print c+0 }' "$store/pending.md")"
+    fi
+    printf 'queue: %s\n' "$q"
+    for note in "${notes[@]}"; do
+      if [[ -f "$store/$note" ]]; then printf 'snapshot: %s present\n' "$note"; else printf 'snapshot: %s missing\n' "$note"; fi
+    done
+  fi
+}
+
 case "$cmd" in
   config)
     key="${1:-}"
@@ -237,6 +332,32 @@ case "$cmd" in
         ;;
       *) die "unknown config key: $key" ;;
     esac
+    ;;
+
+  ids-list)
+    require_store
+    [[ -f "$store/ids" ]] || exit 0
+    awk -F"$tab" '$1 != "" && $1 !~ /^#/ { if ($3 != "") print $1 "\t" $2 "\t" $3; else print $1 "\t" $2 }' "$store/ids"
+    ;;
+
+  ids-pin)
+    op_ids_pin "${1:-}" "${2:-}" "${3:-}"
+    ;;
+
+  load-plan)
+    op_load_plan "$@"
+    ;;
+
+  load-size)
+    require_store
+    [[ $# -ge 1 ]] || die "load-size takes at least one note name"
+    total=0; count=0; budget="$(config_value budget)"; [[ -n "$budget" ]] || budget=60000
+    for rel in "$@"; do
+      require_note "$rel"
+      c="$(wc -m < "$store/$rel" | tr -d ' ')"
+      total=$(( total + c )); count=$(( count + 1 ))
+    done
+    printf 'load: %s notes, %s chars (budget %s)\n' "$count" "$total" "$budget"
     ;;
 
   init)
@@ -390,7 +511,7 @@ EOF
     require_store
     safe_note "$rel"
     case "$rel" in
-      config|pending.md) die "refusing to write over $rel: it is not a note" ;;
+      config|pending.md|ids) die "refusing to write over $rel: it is not a note" ;;
     esac
     mkdir -p "$(dirname "$store/$rel")"
     cat > "$store/$rel.tmp"

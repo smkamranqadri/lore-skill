@@ -22,7 +22,8 @@ If the backend is an MCP and it is not reachable, work from the snapshot: make e
    your own mistakes.
 2. Keep only general lessons: true in another project or with another agent. Project facts belong
    in the project's own memory, never here.
-3. For each lesson, **find a note**, then **read a note with thoughts** (rules and thoughts):
+3. For each lesson, **find a note** (its pinned id; one `search` only when the pin is absent or
+   stale), then **read a note with thoughts** (rules and thoughts):
    - **already covered**: **change a few words** on that rule to raise its `(×N)`, changing nothing
      else. A bump is never **rewrite a note** (that rewrites the whole note) and never a thought.
    - **new**: **add a thought** — one line of rule in the imperative, plus at most one line of why,

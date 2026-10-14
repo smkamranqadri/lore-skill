@@ -1,21 +1,20 @@
 # Current
 
-- Branch: `main`, tracking `origin/main` at `https://github.com/smkamranqadri/lore-skill`
-  (public since 2026-10-09, at the owner's word, after a full-history scan for secrets and personal data). Commits: `5f69f00` phase 1, `39486f4` phase 2a, the
-  phase 2 switch sync, `8ccb83f` phase 3 (0.3.0), `825a86b` phase 4 (0.4.0), `370d7fe` 0.4.1.
-  Pushed through `8bc3e07` and this sync.
-- Task: none in progress. The plan `../intent/plan-2026-10-09-lore.md` is complete: all five
-  phases done 2026-10-09.
-- Live (2026-10-09): lore **0.4.1** at `~/.agents/skills/lore`; `./bootstrap.sh check --source .`
-  reports `Already current: lore` and `Claude skill link already current: lore` (exit 0).
-  `~/.agents/memory/config` = `backend: tartib`, `space: ai-agents`; the snapshot holds the 13
-  mapped notes in the pinned rendering (title once), `pending.md` empty.
+- Branch: `lore-ids` in worktree `../lore-skill.wt/lore-ids`, based on `main` at `6508528`.
+  Not committed, not pushed; `main` is untouched and tracks
+  `origin/main` at `https://github.com/smkamranqadri/lore-skill` (public since 2026-10-09).
+- Task: DONE — the lore load path reads notes by pinned id, not `search`/listing. Version 0.5.0
+  (from 0.4.1): `lore-store.sh` gains `ids-list`, `ids-pin`, `load-plan`, `load-size`; `load.md`
+  is self-contained; `backends/tartib.md` names the pinned-id identity and a Load plan; `files.md`,
+  `commands/backend.md` and `commands/retro.md` follow. 13 pins live in `~/.agents/memory/ids`.
 - Command: `tests/run.sh`; `./bootstrap.sh check --source .`.
 - Blocker: none.
-- Proof: 0.4.1 `.orch/lore/proof-041.txt` (suite, 8 link and 7 render mutations), re-run by the
-  orchestrator with one more render mutation; live snapshot `.orch/lore/proof-snapshot-refresh.txt`;
-  phase 4 `.orch/lore/proof-phase4.txt` and `.orch/lore/live-acceptance-0.4.0.md`.
-- Not proved: the replay wording and the rendering pin are prose around a script (the fixture
-  proves the script's bytes, not that an agent passes the right arguments). The gotchas slug is not
-  pinned by the mapping; the refresh used title-derived slugs that match the existing files.
-- Next: none due. Possible follow-up: pin the gotchas slugs in the mapping table.
+- Proof: `tests/run.sh` — all five suites pass, including the new `tests/test-load-path.sh` with
+  four mutation-checked guards; live `bootstrap.sh update` -> `Installed lore 0.5.0` and `check`
+  -> `Already current`, exit 0; the default load is `load: 3 notes, 25990 chars (budget 60000)`
+  against ~171k for the old `search` path. Detail: orch-skill `.orch/lore-ids/proof.txt` and
+  `report.md`.
+- Not proved: no Tartib MCP in the session, so no live `get_item` and no live stale pin; the
+  stale-pin recovery is fixture-only.
+- Next: the user decides whether to commit and push `lore-ids`; a resume is a plain continuation
+  (work alone, no sub-agents).

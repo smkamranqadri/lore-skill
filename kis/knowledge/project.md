@@ -89,3 +89,17 @@ the H1, the rest of the note's text byte for byte, then `## Thoughts` per `--tho
 (the tartib mapping names the call), so two agents produce the same bytes. Proved by
 `tests/test-skill-links.sh` (8 guards mutation-checked), a `snapshot-render` fixture (7 guards
 mutation-checked) and `.orch/lore/proof-041.txt`.
+
+0.5.0 (2026-10-09, branch `lore-ids`) pins the load path to ids. A load reads each mapped note by
+its pinned id (`get_item <id>`) and never by `search` or a space listing; the ids live in the store
+(`~/.agents/memory/ids`, `<note><TAB><id>` plus a title for gotchas), not in the shipped mapping, so
+`bootstrap.sh update` cannot clobber them. `lore-store.sh` adds `ids-list`, `ids-pin <note> <id>
+[title]`, `load-plan [--note <note>]...` (the read and title for each note, the queue length and the
+snapshot check) and `load-size <note>...` (the load's size line, budget from `budget:` in the config,
+default 60000). The default load is preferences, core rules and the profile; a gotchas note only for
+a stack in play, coordinating only when briefing agents, references only when a location is needed.
+An absent or stale pin self-heals with **one** `search` and is reported, then re-pinned. It cuts a
+live load from ~171k chars (5 `search` + 4 `get_item`) or ~139k (one listing) to 25,990 chars for the
+three notes, and drops the ~30k of skill internals a load used to read. Proved by the new
+`tests/test-load-path.sh` (4 guards mutation-checked), `tests/run.sh`, a clean live
+`bootstrap.sh update`/`check` to 0.5.0, and `.orch/lore-ids/proof.txt`.

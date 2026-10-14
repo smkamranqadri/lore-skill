@@ -2,7 +2,7 @@
 name: lore
 description: "Load and maintain the user's memory across projects: the user profile, preferences and core rules at session start, the gotchas note for a stack you are about to touch, a reference when a location is needed, the coordination rules before briefing or running other agents, and a dated retrospective at the end of a session. Use when the user says retro, retrospective, lessons, fold, or asks to load, save or clean up their general memory. What is true in one project only belongs in that project's own memory (KIS), never here."
 metadata:
-  version: "0.4.1"
+  version: "0.5.0"
 ---
 
 # lore
@@ -26,6 +26,7 @@ gotchas/<stack>.md a stack the session touches
 profile.md         who the user is
 references.md      reference facts and links: where a repo, tool or service lives
 pending.md         writes queued while an MCP backend is down, replayed at the next load
+ids                pinned Tartib ids, one note per line (an MCP backend only)
 ```
 
 ## Backends
@@ -79,6 +80,10 @@ Every backend maps these eight. Use the name, then read the mapping for the call
 | `gotchas/<stack>.md` | The work touches that stack. |
 | `references.md` | The task needs to locate a repo, tool or service. |
 
+A load reads each mapped note by its **pinned id** (the store's `ids` file): one `get_item <id>`,
+never a search of the space. A pin that is absent or stale is recovered with one search and
+re-pinned.
+
 Do not read the whole store. Do not summarise the notes back to the user; follow them.
 
 ## Commands
@@ -87,11 +92,13 @@ Claude Code: `/lore:load`, `/lore:retro`, `/lore:fold`, `/lore:backend` (files i
 linked from `~/.claude/commands/lore`). Other hosts: name the step ("run the lore retro"). Each
 command file stands alone.
 
-- **Load** (session start): resolve the backend, replay any queued writes once it is reachable
-  (before the load's own reads; the replay may look up each target note it writes), then read
-  preferences, core rules and the profile, then only the gotchas notes the work touches and
-  references only when the task needs a location. Write each note read to its snapshot file when the
-  backend is an MCP.
+- **Load** (session start): `lore-store.sh load-plan` prints the reads with each note's pinned id
+  and title, the queue length and the snapshot check; read by those ids, recover an absent or stale
+  pin with one `search`, then `load-size` prints the load's size line. Replay any queued writes once
+  the backend is reachable, before the load's own reads. The default is preferences, core rules and
+  the profile; a gotchas note only for a stack the work touches, `coordinating.md` only when briefing
+  or running other agents, `references.md` only when the task needs a location. Write each note read
+  to its snapshot file when the backend is an MCP.
 - **Retrospective** (end of session, or when asked): turn this session's lessons into general
   ones; a bump for a rule already covered, a thought for a new one. A preference or a profile
   fact only after the user confirms it in words; a reference names where a thing lives and never

@@ -44,6 +44,8 @@ rule, its `(×N)` marker and the text a bump matches all live on one line.
 | reachable? | `test -d ~/.agents/memory` |
 | find a note | `lore-store.sh list` |
 | read a note with thoughts | `lore-store.sh read <note>` |
+| plan a load | `lore-store.sh load-plan [--note <note>]...` (the `read` for each note) |
+| a load's size | `lore-store.sh load-size <note>...` (chars read, against the budget) |
 | add a thought | `lore-store.sh add-thought <note> <text>` |
 | change a few words (a bump) | `lore-store.sh bump-rule <note> <match>` |
 | rewrite a note (Fold) | edit the file directly, then `read` it back |
@@ -51,6 +53,10 @@ rule, its `(×N)` marker and the text a bump matches all live on one line.
 | create a note | `lore-store.sh create <note> --title <title>` |
 
 `sha <note>` prints the note's sha256 for the read-back guard below.
+
+This backend has no pinned ids: `load-plan` prints `read <note>` for the files backend, and the
+`ids-list`/`ids-pin` commands do not apply. A load reads the plan, reads each note, then
+`load-size`.
 
 ## Quirks and guards
 
@@ -83,7 +89,7 @@ the backend is back. `config` says which backend is configured; `pending.md` is 
 | make files the backend for good | `lore-store.sh switch-files` |
 
 - **`snapshot-write`** takes the whole note on stdin; its first line must be `# Title`. It refuses
-  `config` and `pending.md`: a snapshot never touches either.
+  `config`, `pending.md` and `ids`: a snapshot never touches them.
 - **`snapshot-read`** reads one snapshot note. A note not read on this machine yet is reported
   `not in the snapshot`, never invented.
 - **`snapshot-render`** turns one note's text into the files-store shape for `snapshot-write`: the
