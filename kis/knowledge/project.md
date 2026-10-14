@@ -2,8 +2,7 @@
 
 lore-skill is the source repo of **lore**: one memory across projects for any agent (Claude
 Code, Codex, Command Code, others). It holds what is true in every project: lessons,
-preferences, gotchas per stack, the user profile and references. It replaces the
-agent-lessons skill.
+preferences, gotchas per stack, the user profile and references.
 
 ## Neighbours
 
@@ -13,21 +12,16 @@ agent-lessons skill.
   per-project Tartib status space belongs to them, not to lore.
 - Each of the three works alone; none requires another.
 
-## What lore replaces (as of 2026-10-09)
+## Current install and store
 
-- Install: `~/.agents/skills/agent-lessons` (1.0.0), linked from
-  `~/.claude/skills/agent-lessons`; commands linked at `~/.claude/commands/lessons`
-  (`/lessons:load`, `/lessons:retro`, `/lessons:fold`). No source repo; the install is the
-  only copy.
-- Content: Tartib space `ai-agents`, 12 notes: `Agents: start here` (index), preferences,
-  core rules, coordinating parallel agents, gotchas for shell/macOS/Claude Code, Flutter,
-  web, backend data, infra, Pencil MCP, Herdr, and `Codex experiment: rollback`.
-  Preferences and core rules are each near the 15,000-character fold limit.
-- Live files that name agent-lessons or `/lessons:*`: in orch-skill
-  `skills/orch/SKILL.md`, `skills/orch/commands/start.md`, `skills/orch/commands/handoff.md`,
-  `skills/session-close/SKILL.md`, `kis/knowledge/project.md`; global
-  `~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, `~/.commandcode/AGENTS.md`. No settings,
-  hooks or sub-agent definitions mention it (checked 2026-10-09).
+- Lore 0.5.0 installs at `~/.agents/skills/lore`, with Claude discovery linked at
+  `~/.claude/skills/lore` and commands at `~/.claude/commands/lore`.
+- Commands: `/lore:load`, `/lore:retro`, `/lore:fold`, `/lore:backend`; other hosts name
+  the step. Backend config lives at `~/.agents/memory/config`.
+- No config or `backend: files` means the Markdown store at `~/.agents/memory/`.
+  With an MCP backend, that folder holds the snapshot, pinned ids and pending queue.
+- The owner's backend is Tartib, space `ai-agents`; the mapped note identities and pinned-id
+  load path are described below. Lore never creates a space or uses host memory as its store.
 
 ## Seed sources for profile and references
 

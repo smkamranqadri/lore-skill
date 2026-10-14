@@ -1,20 +1,23 @@
 # Current
 
-- Branch: `lore-ids` in worktree `../lore-skill.wt/lore-ids`, based on `main` at `6508528`.
-  Not committed, not pushed; `main` is untouched and tracks
-  `origin/main` at `https://github.com/smkamranqadri/lore-skill` (public since 2026-10-09).
-- Task: DONE — the lore load path reads notes by pinned id, not `search`/listing. Version 0.5.0
-  (from 0.4.1): `lore-store.sh` gains `ids-list`, `ids-pin`, `load-plan`, `load-size`; `load.md`
-  is self-contained; `backends/tartib.md` names the pinned-id identity and a Load plan; `files.md`,
-  `commands/backend.md` and `commands/retro.md` follow. 13 pins live in `~/.agents/memory/ids`.
+- Branch: `main`, tracking `origin/main` (public). Lore implementation d92ba09 (0.5.0);
+  Knowledge review fix integrated. Vendored KIS updated to 0.10.1.
+- Task: six-finding review and lore-context investigation complete; closing under user's
+  2026-10-14 approval to commit/push and apply memory cleanup.
 - Command: `tests/run.sh`; `./bootstrap.sh check --source .`.
-- Blocker: none.
-- Proof: `tests/run.sh` — all five suites pass, including the new `tests/test-load-path.sh` with
-  four mutation-checked guards; live `bootstrap.sh update` -> `Installed lore 0.5.0` and `check`
-  -> `Already current`, exit 0; the default load is `load: 3 notes, 25990 chars (budget 60000)`
-  against ~171k for the old `search` path. Detail: orch-skill `.orch/lore-ids/proof.txt` and
-  `report.md`.
-- Not proved: no Tartib MCP in the session, so no live `get_item` and no live stale pin; the
-  stale-pin recovery is fixture-only.
-- Next: the user decides whether to commit and push `lore-ids`; a resume is a plain continuation
-  (work alone, no sub-agents).
+- Blocker: none for this completed scope.
+- Proof: isolated current-HEAD copy with exact Knowledge fix passes all five suites;
+  orch-skill `.orch/reviewfix/orchestrator-lore-skill-suite.log`. Obsolete install names
+  absent; diff check passes. No lore implementation change or reinstall needed.
+- Lore 0.5.0 prior proof: five suites and four mutation-checked load guards; installed
+  load-plan/size path verified in orch-skill `.orch/lore-ids/`. The four installed load
+  files independently byte-match d92ba09. Stale-pin recovery remains fixture-only.
+- Investigation: orch-skill `.orch/fixes/lore-context-report.md` supports duplicate fuzzy
+  discovery as a cost addressed by pinned IDs; other task output also grows context.
+  GLM context 34156 -> 128997 independently spot-checked. No post-change benchmark.
+- Next for wG:p5: none; review work complete, session closed. Agents exited; reviewfix
+  worktree/branch removed after archived byte verification in orch-skill `.orch/reviewfix/`.
+- Other owner: `rules-split` under w0:p2 remains active in its own worktree; preserve it.
+  No source/store changes from that stream are included in this close.
+- KIS 0.10.1: three vendored files byte-match source; session-anchor tests pass
+  (orch-skill `.orch/reviewfix/kis-anchor-close.log`). Remote checked after push.
