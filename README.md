@@ -18,14 +18,12 @@
   <img alt="About 1,500 tokens per session" src="https://img.shields.io/badge/context-~1.5k%20tokens-orange">
 </p>
 
----
-
 You tell Claude "no, use pnpm". Next week Codex runs `npm install` in another repo. You explain
 it again. Every agent has its own memory, if any, and none of them talk to each other.
 
-**lore fixes that.** It watches for the moments you correct an agent, turns them into short
-rules, and puts the strongest ones in front of every agent you use, in every project. You do not
-run a retro or maintain a notes file. Saying "remember:" is optional.
+lore watches for the moments you correct an agent, turns them into short rules, and puts the
+strongest ones in front of every agent you use, in every project. There is no retro to run and no
+notes file to maintain, and saying "remember:" is optional.
 
 <p align="center">
   <img src="docs/assets/how-it-works.svg" alt="How lore works: learn from finished sessions, keep a small reviewed set of rules, and load a 1,500-token index into every agent." width="860">
@@ -35,14 +33,14 @@ run a retro or maintain a notes file. Saying "remember:" is optional.
 
 lore is young, and the most useful help right now is:
 
-- **Try it** with your agents and [open an issue](https://github.com/smkamranqadri/lore-skill/issues) for anything that surprised you.
-- **Add an agent.** Each one is a single adapter file; see [Adding an agent](docs/adding-an-agent.md).
-- **Improve the filters.** Better correction detection or review prompts, each backed by a test.
+- Try it with your agents and [open an issue](https://github.com/smkamranqadri/lore-skill/issues) for anything that surprised you.
+- Add an agent. Each one is a single adapter file; see [Adding an agent](docs/adding-an-agent.md).
+- Improve the filters: better correction detection or review prompts, each backed by a test.
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) before your first pull request. If lore saves you time,
 a star helps other people find it.
 
-**Details:** [How it works](docs/how-it-works.md) · [Configuration](docs/configuration.md) ·
+More detail: [How it works](docs/how-it-works.md) · [Configuration](docs/configuration.md) ·
 [Adding an agent](docs/adding-an-agent.md) · [Privacy and safety](#privacy-and-safety) ·
 [FAQ](#faq) · [Changelog](CHANGELOG.md)
 
@@ -55,26 +53,26 @@ python3 ~/.agents/skills/lore/scripts/lore.py setup
 ```
 
 `setup` finds the agents installed on your machine, shows every file it will change, backs them
-up, and asks before writing. That is the whole installation. If you use Codex, open `/hooks` once
-inside Codex and trust lore's hooks (Codex asks for this for any new hook).
+up, and asks before writing. If you use Codex, open `/hooks` once inside Codex and trust lore's
+hooks; Codex asks this for any new hook.
 
 Requirements: macOS or Linux, Python 3, and at least one of the supported agents.
 
 ## What you get
 
-- **It learns without being asked.** When a session ends, lore reads only your own messages,
-  skips the ones that are not corrections, and asks a cheap model to turn the rest into rules.
-  Most sessions cost nothing at all.
-- **It does not learn the wrong thing from one bad day.** A new rule waits until you have shown
-  it on two different days, or until you say "remember:", "always" or "never". Once a day a
-  stronger model reviews what is new: it merges duplicates, settles contradictions and rejects
-  noise. Every decision is logged with its reason.
-- **It stays small.** Every agent loads one index of about 1,500 tokens: your strongest rules in
-  full, plus one "read when" line per topic. Unused rules fade; each topic holds at most 25.
-- **It works the same everywhere.** One memory for Claude Code, Codex, Command Code and agy, on
-  every project, and optionally on every machine you work on.
-- **It is yours.** Plain Markdown files in `~/.agents/memory/`. Read them, grep them, keep them
-  in git. Nothing is sent anywhere except to the model CLIs you already use.
+- It learns without being asked. When a session ends, lore reads only your own messages, skips
+  the ones that are not corrections, and asks a cheap model to turn the rest into rules. Most
+  sessions never reach a model at all.
+- One bad day does not teach it a wrong rule. A new rule waits until you have shown it on two
+  different days, or until you say "remember:", "always" or "never". Once a day a stronger model
+  reviews what is new, merging duplicates, settling contradictions and rejecting noise, and logs
+  each decision with its reason.
+- It stays small. Every agent loads one index of about 1,500 tokens with your strongest rules in
+  full and one "read when" line per topic. Unused rules fade, and each topic holds at most 25.
+- It is the same memory for Claude Code, Codex, Command Code and agy, in every project, and
+  optionally on every machine you work on.
+- The memory is plain Markdown in `~/.agents/memory/` that you can read, grep and keep in git.
+  Text leaves your machine only through the model CLIs you already use.
 
 ## Supported agents
 
@@ -116,14 +114,14 @@ New rules appear for a week under **New** in the index, so you can see what lore
 
 | | lore | Claude Code auto memory | Codex memories | Command Code taste | A hand-kept AGENTS.md |
 | --- | --- | --- | --- | --- | --- |
-| Shared across agents | **all four** | Claude only | Codex only | Command Code only | per tool |
-| Shared across projects | **yes** | per project | yes | per project | per project |
-| Learns on its own | **yes** | yes | yes | yes | no |
-| Guards against wrong lessons | **two days or explicit, daily review, decay** | the model decides | background summary | confidence, decay | you decide |
-| Size in every session | **~1.5k tokens, capped** | up to 200 lines | varies | varies | whatever you write |
-| Format | **plain Markdown you own** | Markdown | internal | Markdown | Markdown |
+| Shared across agents | all four | Claude only | Codex only | Command Code only | per tool |
+| Shared across projects | yes | per project | yes | per project | per project |
+| Learns on its own | yes | yes | yes | yes | no |
+| Guards against wrong lessons | two days or explicit, daily review, decay | the model decides | background summary | confidence, decay | you decide |
+| Size in every session | ~1.5k tokens, capped | up to 200 lines | varies | varies | whatever you write |
+| Format | plain Markdown you own | Markdown | internal | Markdown | Markdown |
 
-lore does not replace your project's own instructions. It holds what is true in every project.
+lore holds what is true in every project; each project's own instructions stay where they are.
 
 ## FAQ
 
@@ -145,9 +143,10 @@ explicit word), a stronger model reviews new rules daily, unused rules fade, and
 **How do I undo it?** `python3 ~/.agents/skills/lore/scripts/lore.py setup --remove` takes lore
 out of every agent and keeps your memory; delete `~/.agents/memory/` if you want that gone too.
 
-**Why not just a big AGENTS.md?** Because nobody keeps it up to date, and because research on
-agent context files finds that long ones cost more and help less. lore keeps the loaded part
-small and lets the rest live in topic files the agent reads only when they matter.
+**Why not just a big AGENTS.md?** A hand-kept file goes stale, and a study of agent context files
+([Evaluating AGENTS.md, 2026](https://arxiv.org/abs/2602.11988)) found that long ones raise cost
+and can lower task success. lore keeps the loaded part small and leaves the rest in topic files
+the agent reads only when they apply.
 
 ## Development
 

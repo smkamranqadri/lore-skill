@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640">
+  <style>
+    .bg { fill: #f6f8fa; }
+    .card { fill: #ffffff; stroke: #d0d7de; stroke-width: 1.5; }
+    .head { fill: #1f2328; font: 600 17px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+    .text { fill: #1f2328; font: 15px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+    .muted { fill: #59636e; font: 13px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+    .mono { fill: #1f2328; font: 14px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .bubble { fill: #ddf4ff; stroke: #54aeff; stroke-width: 1.2; }
+    .core { fill: #8250df; }
+    .coretext { fill: #ffffff; font: 700 26px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+    .coresub { fill: #eee6ff; font: 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .ok { fill: #1a7f37; font: 600 15px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+    .flow { stroke: #8250df; stroke-width: 2.5; fill: none; stroke-dasharray: 8 7; animation: flow 1.2s linear infinite; }
+    .tag { fill: #1f2328; font: 600 20px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+    .pulse { animation: pulse 6s ease-in-out infinite; transform-origin: 480px 190px; }
+    .s1 { animation: show 6s ease-out infinite; animation-delay: 0s; }
+    .r1 { animation: show 6s ease-out infinite; animation-delay: 0.3s; }
+    .r2 { animation: show 6s ease-out infinite; animation-delay: 0.6s; }
+    .r3 { animation: show 6s ease-out infinite; animation-delay: 0.9s; }
+    @keyframes flow { to { stroke-dashoffset: -30; } }
+    @keyframes pulse { 0%, 30% { transform: scale(1); } 40% { transform: scale(1.06); } 50%, 100% { transform: scale(1); } }
+    @keyframes show { 0%, 45% { opacity: 0; } 55%, 92% { opacity: 1; } 100% { opacity: 0; } }
+        @media (prefers-reduced-motion: reduce) {
+      .flow, .pulse, .s1, .r1, .r2, .r3 { animation: none; }
+    }
+  </style>
+  <rect x="0" y="0" width="1280" height="640" fill="#f6f8fa"/>
+  <text x="640" y="118" text-anchor="middle" style="fill:#8250df;font:800 76px ui-sans-serif, system-ui, sans-serif">lore</text>
+  <text x="640" y="172" text-anchor="middle" style="fill:#1f2328;font:600 32px ui-sans-serif, system-ui, sans-serif">One memory for every coding agent</text>
+  <g transform="translate(160 205)">
+
+  <!-- You correct one agent -->
+  <rect class="card" x="36" y="64" width="262" height="196" rx="12"/>
+  <text class="head" x="56" y="96">Claude Code</text>
+  <text class="muted" x="56" y="118">today, one session</text>
+  <rect class="bubble" x="56" y="138" width="222" height="58" rx="10"/>
+  <text class="text" x="72" y="163">no, use pnpm,</text>
+  <text class="text" x="72" y="184">not npm</text>
+  <text class="muted" x="56" y="234">you say it once</text>
+
+  <!-- into lore -->
+  <path class="flow" d="M298 162 C 350 162, 360 190, 404 190"/>
+  <g class="pulse">
+    <rect class="core" x="404" y="132" width="152" height="116" rx="58"/>
+    <text class="coretext" x="480" y="190" text-anchor="middle">lore</text>
+    <text class="coresub" x="480" y="214" text-anchor="middle">one memory</text>
+  </g>
+  <path class="flow" d="M556 190 C 600 190, 610 104, 662 104"/>
+  <path class="flow" d="M556 190 L 662 190"/>
+  <path class="flow" d="M556 190 C 600 190, 610 276, 662 276"/>
+
+  <!-- every other agent follows it -->
+  <text class="muted" x="664" y="56">every other agent, next session</text>
+  <rect class="card" x="662" y="70" width="262" height="68" rx="12"/>
+  <text class="head" x="682" y="98">Codex</text>
+  <text class="ok r1" x="682" y="122">✓ uses pnpm</text>
+
+  <rect class="card" x="662" y="156" width="262" height="68" rx="12"/>
+  <text class="head" x="682" y="184">Command Code</text>
+  <text class="ok r2" x="682" y="208">✓ uses pnpm</text>
+
+  <rect class="card" x="662" y="242" width="262" height="68" rx="12"/>
+  <text class="head" x="682" y="270">agy</text>
+  <text class="ok r3" x="682" y="294">✓ uses pnpm</text>
+</g>
+  <text x="640" y="600" text-anchor="middle" style="fill:#59636e;font:22px ui-sans-serif, system-ui, sans-serif">Claude Code · Codex · Command Code · agy · github.com/smkamranqadri/lore-skill</text>
+</svg>
