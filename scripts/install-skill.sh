@@ -95,6 +95,20 @@ for src in "$source_root"/skills/*/; do
       echo "Claude skill link: $link -> $target"
     fi
   fi
+  # agy reads global skills only from ~/.gemini/config/skills/; link there when agy is set up.
+  if [[ -d "$home_dir/.gemini" ]]; then
+    link="$home_dir/.gemini/config/skills/$name"
+    target="../../../.agents/skills/$name"
+    mkdir -p "$home_dir/.gemini/config/skills"
+    if [[ -L "$link" ]] && [[ "$(readlink "$link")" == "$target" ]]; then
+      echo "agy skill link already current: $link"
+    elif [[ -e "$link" || -L "$link" ]]; then
+      echo "Kept your existing agy skill path: $link (not overwritten)"
+    else
+      ln -s "$target" "$link"
+      echo "agy skill link: $link -> $target"
+    fi
+  fi
 done
 
 if [[ "$claude_link" == "true" ]] && [[ -d "$skills_dir/lore/commands" ]]; then

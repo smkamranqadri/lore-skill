@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" width="960" height="560" role="img" aria-labelledby="t d">
+  <title id="t">How lore works: learn, keep, use</title>
+  <desc id="d">Learn: when a session ends a hook queues it; a background harvester reads only your messages, a regex skips sessions with no correction, and a cheap model turns corrections into candidate rules. Keep: a candidate becomes a rule when seen on two different days or when you say remember; a strong model reviews new memory once a day; unused rules decay. Use: a small index of about 1,500 tokens is written into every agent's global instructions. An optional hub keeps several machines in step.</desc>
+  <style>
+    .bg { fill: #f6f8fa; }
+    .lane { fill: #ffffff; stroke: #d0d7de; stroke-width: 1.2; }
+    .box { fill: #ffffff; stroke: #8c959f; stroke-width: 1.4; }
+    .key { fill: #fbefff; stroke: #8250df; stroke-width: 1.6; }
+    .lanelabel { fill: #8250df; font: 700 15px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; letter-spacing: 1.5px; }
+    .h { fill: #1f2328; font: 600 14.5px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+    .t { fill: #59636e; font: 12.5px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+    .mono { fill: #1f2328; font: 12.5px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .arrow { stroke: #8c959f; stroke-width: 1.8; fill: none; marker-end: url(#a); }
+    .dash { stroke: #8250df; stroke-width: 1.6; fill: none; stroke-dasharray: 6 5; }
+    .ah { fill: #8c959f; }
+    .side { fill: #59636e; font: italic 12px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #0d1117; }
+      .lane { fill: #0d1117; stroke: #30363d; }
+      .box { fill: #161b22; stroke: #484f58; }
+      .key { fill: #271d3e; stroke: #a371f7; }
+      .lanelabel { fill: #a371f7; }
+      .h, .mono { fill: #e6edf3; }
+      .t, .side { fill: #9198a1; }
+      .arrow { stroke: #6e7681; }
+      .ah { fill: #6e7681; }
+      .dash { stroke: #a371f7; }
+    }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="ah" d="M0 0 L10 5 L0 10 z"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="960" height="560" rx="18"/>
+
+  <!-- LEARN -->
+  <rect class="lane" x="20" y="20" width="920" height="160" rx="12"/>
+  <text class="lanelabel" x="40" y="48">LEARN</text>
+  <rect class="box" x="40" y="64" width="196" height="96" rx="10"/>
+  <text class="h" x="56" y="90">A session ends</text>
+  <text class="t" x="56" y="112">Claude Code, Codex,</text>
+  <text class="t" x="56" y="130">Command Code or agy</text>
+  <text class="t" x="56" y="148">(any project)</text>
+  <path class="arrow" d="M236 112 L 268 112"/>
+  <rect class="box" x="270" y="64" width="196" height="96" rx="10"/>
+  <text class="h" x="286" y="90">A hook queues it</text>
+  <text class="t" x="286" y="112">in milliseconds; a worker</text>
+  <text class="t" x="286" y="130">runs in the background,</text>
+  <text class="t" x="286" y="148">never in your way</text>
+  <path class="arrow" d="M466 112 L 498 112"/>
+  <rect class="box" x="500" y="64" width="196" height="96" rx="10"/>
+  <text class="h" x="516" y="90">Only your words</text>
+  <text class="t" x="516" y="112">secrets redacted; a regex</text>
+  <text class="t" x="516" y="130">skips sessions with no</text>
+  <text class="t" x="516" y="148">correction (no model call)</text>
+  <path class="arrow" d="M696 112 L 728 112"/>
+  <rect class="key" x="730" y="64" width="190" height="96" rx="10"/>
+  <text class="h" x="746" y="90">A cheap model</text>
+  <text class="t" x="746" y="112">turns corrections into</text>
+  <text class="t" x="746" y="130">candidate rules; project</text>
+  <text class="t" x="746" y="148">facts go to your KIS</text>
+
+  <!-- KEEP -->
+  <rect class="lane" x="20" y="196" width="920" height="160" rx="12"/>
+  <text class="lanelabel" x="40" y="224">KEEP</text>
+  <path class="arrow" d="M825 160 L 825 238"/>
+  <rect class="box" x="730" y="240" width="190" height="96" rx="10"/>
+  <text class="h" x="746" y="266">Candidate → rule</text>
+  <text class="t" x="746" y="288">seen on two different</text>
+  <text class="t" x="746" y="306">days, or you said</text>
+  <text class="t" x="746" y="324">"remember:", "always"</text>
+  <path class="arrow" d="M730 288 L 698 288"/>
+  <rect class="key" x="500" y="240" width="196" height="96" rx="10"/>
+  <text class="h" x="516" y="266">Daily review</text>
+  <text class="t" x="516" y="288">a strong model merges,</text>
+  <text class="t" x="516" y="306">scopes and rejects; every</text>
+  <text class="t" x="516" y="324">decision is logged</text>
+  <path class="arrow" d="M500 288 L 468 288"/>
+  <rect class="box" x="270" y="240" width="196" height="96" rx="10"/>
+  <text class="h" x="286" y="266">Stays small</text>
+  <text class="t" x="286" y="288">unused rules decay,</text>
+  <text class="t" x="286" y="306">25 per topic, "drop that"</text>
+  <text class="t" x="286" y="324">removes one for good</text>
+  <path class="arrow" d="M270 288 L 238 288"/>
+  <rect class="box" x="40" y="240" width="196" height="96" rx="10"/>
+  <text class="h" x="56" y="266">Plain files</text>
+  <text class="mono" x="56" y="290">~/.agents/memory/</text>
+  <text class="t" x="56" y="310">one Markdown file per</text>
+  <text class="t" x="56" y="328">topic, yours to read</text>
+
+  <!-- USE -->
+  <rect class="lane" x="20" y="372" width="920" height="168" rx="12"/>
+  <text class="lanelabel" x="40" y="400">USE</text>
+  <text class="t" x="88" y="400">every new session, on every agent, starts with your rules loaded</text>
+  <path class="arrow" d="M138 336 L 138 414"/>
+  <rect class="key" x="40" y="416" width="196" height="104" rx="10"/>
+  <text class="h" x="56" y="442">One small index</text>
+  <text class="t" x="56" y="464">~1,500 tokens: the top</text>
+  <text class="t" x="56" y="482">rules inline, a "read when"</text>
+  <text class="t" x="56" y="500">line for each topic file</text>
+  <path class="arrow" d="M236 468 L 268 468"/>
+  <rect class="box" x="270" y="416" width="160" height="46" rx="8"/>
+  <text class="mono" x="284" y="444">CLAUDE.md</text>
+  <rect class="box" x="440" y="416" width="160" height="46" rx="8"/>
+  <text class="mono" x="454" y="444">codex AGENTS.md</text>
+  <rect class="box" x="270" y="474" width="160" height="46" rx="8"/>
+  <text class="mono" x="284" y="502">cmd AGENTS.md</text>
+  <rect class="box" x="440" y="474" width="160" height="46" rx="8"/>
+  <text class="mono" x="454" y="502">GEMINI.md (agy)</text>
+  <rect class="box" x="736" y="416" width="184" height="104" rx="10" style="stroke-dasharray: 5 4"/>
+  <text class="h" x="752" y="442">Optional hub</text>
+  <text class="t" x="752" y="464">keeps the memory of</text>
+  <text class="t" x="752" y="482">several machines in step</text>
+  <text class="t" x="752" y="500">(Tartib today)</text>
+  <path class="dash" d="M736 468 C 680 468, 650 380, 620 360 L 236 336"/>
+  <text class="side" x="640" y="396">sync</text>
+</svg>

@@ -1,131 +1,52 @@
 ---
 name: lore
-description: "Load and maintain the user's memory across projects: the user profile, preferences and core rules at session start, the gotchas note for a stack you are about to touch, a reference when a location is needed, the coordination rules before briefing or running other agents, and a dated retrospective at the end of a session. Use when the user says retro, retrospective, lessons, fold, or asks to load, save or clean up their general memory. What is true in one project only belongs in that project's own memory (KIS), never here."
+description: "The user's memory across projects and hosts: how they want coding agents to work, hard rules, and gotchas per stack. Its index is already in your global instructions. Use this skill when the user says remember, always, never, or drop that; when they correct you in a way that should hold in other projects; when the index says a memory sync is due; when you need a category file the index points to; or when the user asks to sync memory, learn from taste, or see what lore knows. What is true in one project only belongs in that project's own memory (KIS), never here."
 metadata:
-  version: "0.6.0"
+  version: "1.0.0"
 ---
 
 # lore
 
-One memory across projects, for any agent. It holds what is true everywhere: preferences, core
-rules, gotchas per stack, the user profile and references. Project facts stay in the project's
-own memory; project status belongs to orch and session-close. Lore never reads or writes a
-host's built-in memory.
+One memory for every host (Claude Code, Codex, Command Code, agy) and every project. It learns
+on its own: hooks hand finished sessions to a background harvester, a cheap model turns your
+corrections into candidate rules, and a candidate becomes a rule once it is seen on two
+different days or the user states it outright. A stronger model reviews new memory once a day.
+You rarely run anything yourself.
 
-## The store
+`L` means `python3 ~/.agents/skills/lore/scripts/lore.py`. Never edit the memory files by hand;
+they are rewritten by `L`.
 
-Notes are Markdown, one per file, in `~/.agents/memory/`:
+## What you already have
 
-```text
-config             backend: files | tartib | <name>, plus per-backend settings (space)
-start-here.md      the index: each note, and when to read it
-preferences.md     how the user wants work done
-core-rules.md      the small always-loaded core: the rules every session needs
-core-verify.md     core rules on verification, tests and debugging (on demand)
-core-production.md core rules on production, data and secrets (on demand)
-core-tools.md      core rules on git and tools (on demand)
-core-user.md       core rules on working with the user (on demand)
-coordinating.md    briefing, running and merging other agents
-gotchas/<stack>.md a stack the session touches
-profile.md         who the user is
-references.md      reference facts and links: where a repo, tool or service lives
-pending.md         writes queued while an MCP backend is down, replayed at the next load
-ids                pinned Tartib ids, one note per line (an MCP backend only)
-```
+The index (`~/.agents/memory/INDEX.md`) is in your global instructions: the strongest rules
+inline, then one "read when" line per category file. Follow the rules. Read a category file
+(`~/.agents/memory/<category>.md`) only when its read-when line matches the task. Do not
+summarise memory back to the user.
 
-## Backends
+## When the user speaks to memory
 
-A backend maps lore's operations onto a notes store, so any MCP can be attached by writing one
-file under `backends/`. This release ships **`files`** (the store above, nothing else installed)
-and **`tartib`** (the configured space, over the Tartib MCP tools). `files.md` and `tartib.md`
-name the concrete call behind each operation and its quirks.
-
-Resolve the backend before acting:
-
-```bash
-lore-store.sh config          # backend: <name>, then space: <name> when set
-lore-store.sh config mapping  # the mapping file to read
-```
-
-No `config`, or `backend: files`, means the files backend: everything runs on `~/.agents/memory/`.
-
-When the configured backend is an MCP and it is not reachable, say so in one line and offer
-exactly three choices: **reconnect** it (name the MCP and this host's one reconnecting step, then
-retry the reachability call); **work from the snapshot for now** (every write goes to the snapshot
-and to `pending.md`, Fold is refused, and the queue replays at the next load once the backend is
-back); or **switch to files for good** (`backend: files`, the snapshot becomes the store, the
-queue is cleared). Never create a space or a store to make it reachable. The mechanics and
-guards are in `backends/files.md` and `backends/tartib.md`; `/lore:backend` drives them.
-
-## Operations
-
-Every backend maps these eight. Use the name, then read the mapping for the call:
-
-| Operation | What it does |
+| The user says | You run |
 |---|---|
-| reachable? | can this backend be read right now (read-only) |
-| find a note | locate one note by its identity |
-| read a note with thoughts | the note's text and its unfiled thoughts |
-| add a thought | append one dated lesson to a note |
-| change a few words (a bump) | raise one rule's `(×N)` in place |
-| rewrite a note (Fold) | replace a note's text with the folded version |
-| delete a thought | remove one folded thought |
-| create a note | make a new note, never a new space |
+| "remember: X", or "always / never X" about how to work | `L add --cat <category> --text "<X as one imperative rule>" --src "<their words>" --explicit` |
+| "drop that" about a rule shown under New | `L drop <id shown in brackets>` |
+| "what does lore know about X" | `L list --cat <category>` (or `--candidates`) |
+| "pin that" | `L pin <id>` |
 
-## The notes, and when to read them
-
-| Note | Read when |
-|---|---|
-| `start-here.md` | Anything below is unclear; it is the index and the method. |
-| `profile.md` | Always, at session start. |
-| `preferences.md` | Always, at session start. |
-| `core-rules.md` | Always, at session start: the small core, the rules every session needs. |
-| `core-verify.md` | The task has anything to check: tests, guards, debugging, a refactor or migration, a UI change, a measurement, or a deploy to prove. |
-| `core-production.md` | The task touches production or live data, a server, a deploy, secrets or credentials, a destructive delete, or SSH and firewall settings. |
-| `core-tools.md` | The task edits many files or scripts, runs git or a formatter or linter, or batches large reads. |
-| `core-user.md` | You ask the user, record a decision, write State or KIS, or close and hand off. |
-| `coordinating.md` | You brief, run or merge other agents. |
-| `gotchas/<stack>.md` | The work touches that stack. |
-| `references.md` | The task needs to locate a repo, tool or service. |
-
-The four `core-*.md` topic notes are the rest of the core rules, split out so a load reads only
-what the task needs. Every rule keeps its number and text, so a cross-reference elsewhere ("core
-rule 27") still resolves: the core carries an index line naming where each range lives.
-
-A load reads each mapped note by its **pinned id** (the store's `ids` file): one `get_item <id>`,
-never a search of the space. A pin that is absent or stale is recovered with one search and
-re-pinned.
-
-Do not read the whole store. Do not summarise the notes back to the user; follow them.
+A rule is one imperative sentence that holds in any project. A fact about this project only (its
+stack, paths, deploy steps) goes to the project's KIS instead; say so. Never store secrets,
+credentials or personal data.
 
 ## Commands
 
-Claude Code: `/lore:load`, `/lore:retro`, `/lore:fold`, `/lore:backend` (files in `commands/`,
-linked from `~/.claude/commands/lore`). Other hosts: name the step ("run the lore retro"). Each
-command file stands alone.
+- `/lore:sync` (`commands/sync.md`): run it when the index says a sync is due.
+- `/lore:learn-taste` (`commands/learn-taste.md`): harvest Command Code's taste files.
+- `/lore:retro` (`commands/retro.md`): record this session's lessons by hand, when the user asks.
 
-- **Load** (session start): `lore-store.sh load-plan` prints the reads with each note's pinned id
-  and title, the queue length and the snapshot check; read by those ids, recover an absent or stale
-  pin with one `search`, then `load-size` prints the load's size line. Replay any queued writes once
-  the backend is reachable, before the load's own reads. The default is preferences, core rules and
-  the profile; add a core topic note (`--note core-verify.md` and so on) when its `when to read`
-  applies, a gotchas note only for a stack the work touches, `coordinating.md` only when briefing
-  or running other agents, `references.md` only when the task needs a location. Write each note read
-  to its snapshot file when the backend is an MCP.
-- **Retrospective** (end of session, or when asked): turn this session's lessons into general
-  ones; a bump for a rule already covered, a thought for a new one. A preference or a profile
-  fact only after the user confirms it in words; a reference names where a thing lives and never
-  holds a secret, address or value; a new stack's gotchas note only when a stack has none. When
-  the backend is an MCP, refresh every mapped note in the snapshot afterwards.
-- **Fold** (a note with 10 or more thoughts, or when asked): merge the thoughts into the note
-  text, read it back, then delete them. Never delete a thought whose content is not in the text
-  you just read back. Refused while working from a snapshot.
-- **Backend** (`/lore:backend`): show the config and whether the backend is reachable, reconnect
-  it, replay the queue now, or switch to files for good.
+Hosts without slash commands: "run the lore sync step" and follow the command file.
 
-## Never
+## Checks and repairs
 
-- Never write a near-duplicate rule; bump the existing one.
-- Never record a project fact, a project name, or a session story here.
-- Never put secrets, hostnames, IPs or customer data in a note.
-- Never rewrite a note's text beyond the rule you are changing, except in Fold.
+`L deliver --check` (is every host's copy of the index current), `L hooks check` (are the
+capture hooks installed), `L index` (index size against its budget), `L review --force` (run the
+daily review now). Logs: `~/.agents/memory/harvest.log`, `review.log`, `notices` (project facts
+that belong in KIS).

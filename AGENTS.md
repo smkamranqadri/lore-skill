@@ -23,17 +23,21 @@ outside every host's discovery path. To use it, install into a home with `bootst
 ```text
 skills/lore/           the lore package, and what ships
   SKILL.md             the method; loaded at work time
-  commands/            load, retro, fold, backend (Claude: /lore:load, /lore:retro, /lore:fold, /lore:backend)
-  backends/            one mapping file per notes backend (ships files and tartib)
-  scripts/             lore-store.sh, the files-backend and fallback mechanics
+  commands/            sync, learn-taste, retro (Claude: /lore:sync, /lore:learn-taste, /lore:retro)
+  hosts/               one adapter per host: global file, hooks, transcripts, model commands
+  scripts/             lore.py (store, index, delivery, import), lore_capture.py (hooks,
+                       harvest, review, taste), lore_sync.py (hub sync), lore-hook.sh
 scripts/               install-skill.sh, run from a source clone only
-tests/                 installer, store, fallback and skill-link tests, never installed
+docs/                  the pages the README links to, and its SVG images (never installed)
+.github/workflows/     CI: tests/run.sh on Linux
+tests/                 one suite per area (store, delivery, capture, review, sync, import, taste,
+                       setup, review fixes, install), never installed
 bootstrap.sh           one-command install, check, update
 kis/                   this repo's own project memory (read kis/state first)
 ```
 
-Installing copies `skills/lore/` verbatim to `~/.agents/skills/lore` and links
-`~/.claude/commands/lore`. If a file does not belong in someone's home, it does not belong in
+Installing copies `skills/lore/` verbatim to `~/.agents/skills/lore` and links it for Claude
+and agy. If a file does not belong in someone's home, it does not belong in
 `skills/`.
 
 ## Rules
@@ -43,7 +47,8 @@ Installing copies `skills/lore/` verbatim to `~/.agents/skills/lore` and links
 - Command bodies in `skills/lore/commands/` stand alone (loaded without `SKILL.md`), so they
   restate rules on purpose. When a command and `SKILL.md` disagree, `SKILL.md` is right.
 - `metadata.version` in `SKILL.md` is bumped on every change that ships.
-- Guards live in `scripts/lore-store.sh` and `scripts/install-skill.sh`; every one is
+- Tests never call a real model CLI: they set `LORE_EXTRACT_CMD` and `LORE_REVIEW_CMD` to fakes.
+- Guards live in `skills/lore/scripts/` and `scripts/install-skill.sh`; every one is
   mutation-checked (break it, watch its test fail, restore it).
 - The live install is the owner's working copy: after a change here, run
   `bootstrap.sh update --source .` and prove it with `check`.

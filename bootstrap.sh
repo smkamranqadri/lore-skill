@@ -19,12 +19,15 @@ Options:
   --home <dir>       Home directory to install into. Defaults to $HOME.
   --force            install: replace an existing install.
   --no-claude-link   Do not create the ~/.claude links (skills/lore and commands/lore).
+  --setup            install: then run `lore.py setup --yes` (memory store, index in every
+                     agent's global instructions, capture hooks; files backed up first).
   -h, --help         Show this help.
 
 Examples:
   bootstrap.sh install --repo https://github.com/smkamranqadri/lore-skill.git
-  bootstrap.sh check --source ~/Repositores/side-projects/lore-skill
-  bootstrap.sh update --source ~/Repositores/side-projects/lore-skill
+  bootstrap.sh install --repo https://github.com/smkamranqadri/lore-skill.git --setup
+  bootstrap.sh check --source ~/src/lore-skill
+  bootstrap.sh update --source ~/src/lore-skill
 USAGE
 }
 
@@ -41,6 +44,7 @@ source_arg=""
 home_dir="${HOME:-}"
 force="false"
 claude_link="true"
+run_setup="false"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -50,6 +54,7 @@ while [[ $# -gt 0 ]]; do
     --home) [[ $# -ge 2 ]] || die "--home requires a path"; home_dir="$2"; shift 2 ;;
     --force) force="true"; shift ;;
     --no-claude-link) claude_link="false"; shift ;;
+    --setup) run_setup="true"; shift ;;
     -h|--help) usage; exit 0 ;;
     *) die "unknown argument: $1" ;;
   esac
@@ -112,6 +117,14 @@ case "$command_name" in
     args=("${install_args[@]}")
     [[ "$force" == "true" ]] && args+=(--force)
     "$source_root/scripts/install-skill.sh" "${args[@]}"
+    lore_py="$home_dir/.agents/skills/lore/scripts/lore.py"
+    if [[ "$run_setup" == "true" ]]; then
+      HOME="$home_dir" python3 "$lore_py" setup --yes
+    else
+      echo
+      echo "Next: set lore up for your coding agents (it shows the plan and asks first):"
+      echo "  python3 ~/.agents/skills/lore/scripts/lore.py setup"
+    fi
     ;;
   check)
     rc=0

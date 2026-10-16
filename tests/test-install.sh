@@ -14,12 +14,23 @@ fail() { echo "FAIL: $*" >&2; echo "--- last output ---" >&2; cat "$log" >&2 || 
 "$repo_root/bootstrap.sh" install --source "$repo_root" --home "$home" >"$log" 2>&1 || fail "install exited non-zero"
 grep -q "Installed lore " "$log" || fail "install did not report lore"
 test -f "$home/.agents/skills/lore/SKILL.md" || fail "lore SKILL.md missing"
-test -f "$home/.agents/skills/lore/scripts/lore-store.sh" || fail "store script missing"
-test -f "$home/.agents/skills/lore/backends/files.md" || fail "files backend missing"
+test -f "$home/.agents/skills/lore/scripts/lore.py" || fail "store script missing"
+test -f "$home/.agents/skills/lore/hosts/claude.conf" || fail "host adapters missing"
 test -L "$home/.claude/commands/lore" || fail "commands link missing"
-test -f "$home/.claude/commands/lore/load.md" || fail "commands link does not resolve"
-test -f "$home/.claude/commands/lore/backend.md" || fail "commands link does not resolve the backend command"
+test -f "$home/.claude/commands/lore/sync.md" || fail "commands link does not resolve"
+test -f "$home/.claude/commands/lore/learn-taste.md" || fail "commands link does not resolve the learn-taste command"
 test ! -e "$home/.agents/skills/lore/tests" || fail "tests must not be installed"
+test ! -e "$home/.gemini" || fail "install created ~/.gemini for a host that is not set up"
+
+# 1b. with agy set up (~/.gemini present), its global skills folder gets a link, never an overwrite
+agyhome="$tmp/agyhome"; mkdir -p "$agyhome/.gemini"
+"$repo_root/bootstrap.sh" install --source "$repo_root" --home "$agyhome" >"$log" 2>&1 || fail "install with agy exited non-zero"
+[[ "$(readlink "$agyhome/.gemini/config/skills/lore")" == "../../../.agents/skills/lore" ]] || fail "agy skill link missing or wrong"
+test -f "$agyhome/.gemini/config/skills/lore/SKILL.md" || fail "agy skill link does not resolve"
+agyhome2="$tmp/agyhome2"; mkdir -p "$agyhome2/.gemini/config/skills/lore"; echo mine > "$agyhome2/.gemini/config/skills/lore/own.md"
+"$repo_root/bootstrap.sh" install --source "$repo_root" --home "$agyhome2" >"$log" 2>&1 || fail "install over a user agy path exited non-zero"
+grep -q "Kept your existing agy skill path" "$log" || fail "a user agy path was not reported as kept"
+test -f "$agyhome2/.gemini/config/skills/lore/own.md" || fail "a user agy path was overwritten"
 
 # 2. byte-identical to source
 diff -r --exclude=__pycache__ --exclude=.DS_Store "$repo_root/skills/lore" "$home/.agents/skills/lore" >"$log" 2>&1 \

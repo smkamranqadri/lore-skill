@@ -21,7 +21,7 @@ link="$home/.claude/skills/lore"
 test -L "$link" || fail "fresh lore link missing"
 [[ "$(readlink "$link")" == "../../.agents/skills/lore" ]] || fail "wrong lore link target"
 test -f "$link/SKILL.md" || fail "lore link does not resolve"
-test -f "$link/scripts/lore-store.sh" || fail "lore link does not resolve the store script"
+test -f "$link/scripts/lore.py" || fail "lore link does not resolve the store script"
 check "$home" || fail "fresh links should check current"
 grep -q 'Claude skill link already current: lore' "$log" || fail "fresh link not reported current"
 
