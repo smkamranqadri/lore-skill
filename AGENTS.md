@@ -26,12 +26,14 @@ skills/lore/           the lore package, and what ships
   commands/            sync, learn-taste, retro (Claude: /lore:sync, /lore:learn-taste, /lore:retro)
   hosts/               one adapter per host: global file, hooks, transcripts, model commands
   scripts/             lore.py (store, index, delivery, import), lore_capture.py (hooks,
-                       harvest, review, taste), lore_sync.py (hub sync), lore-hook.sh
+                       harvest, review, taste), lore_sync.py (hub sync), lore-hook.sh;
+                       2.0, beside 1.x until P5: lore_store.py (git store, sidecars, index,
+                       headless git, merge drivers), lore_hub.py (hub, session-end step, shim)
 scripts/               install-skill.sh, run from a source clone only
 docs/                  the pages the README links to, and its SVG images (never installed)
 .github/workflows/     CI: tests/run.sh on Linux
 tests/                 one suite per area (store, delivery, capture, review, sync, import, taste,
-                       setup, review fixes, install), never installed
+                       setup, review fixes, install; 2.0: store2, hub), never installed
 bootstrap.sh           one-command install, check, update
 kis/                   this repo's own project memory (read kis/state first)
 ```
@@ -47,7 +49,11 @@ and agy. If a file does not belong in someone's home, it does not belong in
 - Command bodies in `skills/lore/commands/` stand alone (loaded without `SKILL.md`), so they
   restate rules on purpose. When a command and `SKILL.md` disagree, `SKILL.md` is right.
 - `metadata.version` in `SKILL.md` is bumped on every change that ships.
-- Tests never call a real model CLI: they set `LORE_EXTRACT_CMD` and `LORE_REVIEW_CMD` to fakes.
+- Tests never call a real model CLI: they set `LORE_EXTRACT_CMD` and `LORE_REVIEW_CMD` to fakes
+  (2.0 adds `LORE_LOREMASTER_CMD` and `LORE_CANON_CMD`). Nor the network or GitHub: any hub is a
+  local bare repo (`git init --bare`), GitHub URLs are rewritten to local paths with `insteadOf`,
+  `gh` is a fake through `LORE_GH_CMD`, and git runs with `GIT_CONFIG_GLOBAL` set to `/dev/null`
+  (or to a deliberately hostile file). The 2.0 store is `LORE_STORE2` in a temporary HOME.
 - Guards live in `skills/lore/scripts/` and `scripts/install-skill.sh`; every one is
   mutation-checked (break it, watch its test fail, restore it).
 - The live install is the owner's working copy: after a change here, run

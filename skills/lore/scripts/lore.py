@@ -831,6 +831,10 @@ def cmd_setup(store, args):
     print(f"lore will {verb}:")
     if not args.remove:
         print(f"  memory store   {store.root}{'' if os.path.isdir(store.root) else ' (new)'}")
+    import lore_hub
+    if not args.remove:
+        for line in lore_hub.setup_plan_lines(args):
+            print(line)
     for name, files in plan:
         for f in files:
             print(f"  {name:<14} {f}{'' if os.path.exists(f) else ' (new)'}")
@@ -859,12 +863,14 @@ def cmd_setup(store, args):
     if args.remove:
         cmd_deliver(store, argparse.Namespace(host=None, check=False, remove=True))
         lore_capture.hooks(store, argparse.Namespace(host=None, action="remove"))
+        lore_hub.remove_shim()
         print(f"lore is removed from every agent. Your memory stays in {store.root}; delete it yourself if you want it gone.")
         return
     if not os.path.isdir(store.root):
         cmd_init(store, args)
     cmd_deliver(store, argparse.Namespace(host=None, check=False, remove=False))
     lore_capture.hooks(store, argparse.Namespace(host=None, action="install"))
+    lore_hub.setup_store2(args)
     print("lore is set up. Every new session on these agents loads your memory, and lore learns from")
     print("your corrections on its own. Say 'remember: ...' to teach it a rule at once.")
 
@@ -873,6 +879,7 @@ def main(argv=None):
     p = argparse.ArgumentParser(prog="lore.py", description="lore memory store")
     p.add_argument("--store", default=os.environ.get("LORE_STORE", STORE_DEFAULT))
     p.add_argument("--today", help="date to act as today (YYYY-MM-DD), for tests and replays")
+    p.add_argument("--store2", help="the lore 2.0 store (default: LORE_STORE2 or ~/.agents/lore)")
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("init", help="create the store (never overwrites)")
     a = sub.add_parser("add", help="record a learning as a candidate, or bump a known one")
@@ -917,6 +924,8 @@ def main(argv=None):
     su.add_argument("--dry-run", action="store_true", help="show what would change, change nothing")
     su.add_argument("--yes", action="store_true", help="do not ask for confirmation")
     su.add_argument("--remove", action="store_true", help="take lore out of every agent (memory is kept)")
+    su.add_argument("--hub", metavar="URL", help="attach this private git repository as the 2.0 store's hub")
+    su.add_argument("--no-hub", action="store_true", help="do not ask for a hub (local git only)")
     sub.add_parser("sync-status", help="print, as JSON, whether a hub sync is due and what to push")
     ex = sub.add_parser("export", help="copy the sync files to a folder, for the agent to push")
     ex.add_argument("--out", required=True)
@@ -934,6 +943,16 @@ def main(argv=None):
     sd = sub.add_parser("sync-done", help="record a finished sync")
     sd.add_argument("--pushed", required=True, help="the folder export wrote and the agent pushed")
     sd.add_argument("--remote-seen", help="JSON file: hub note title -> updated_at after the push")
+    st2 = sub.add_parser("store", help="the lore 2.0 store: init, status, index, commit, run")
+    st2.add_argument("action", choices=["init", "status", "index", "commit", "run"])
+    st2.add_argument("-m", "--message", help="commit: the subject (default: says what changed)")
+    st2.add_argument("--trigger", default="manual", help="run: what started it, logged (the hook passes host:event)")
+    st2.add_argument("--force", action="store_true", help="run: push even while backing off after a failure")
+    hb = sub.add_parser("hub", help="the 2.0 store's private git hub: set, status, create")
+    hb.add_argument("action", choices=["set", "status", "create"])
+    hb.add_argument("url", nargs="?", help="set: the private repository's git URL")
+    hb.add_argument("--name", default="lore-memory", help="create: the repository name")
+    hb.add_argument("--yes", action="store_true", help="create: do not ask for confirmation")
     args = p.parse_args(argv)
     store = Store(os.path.abspath(os.path.expanduser(args.store)), today(args))
     handlers = {"init": cmd_init, "add": cmd_add, "drop": cmd_drop, "maintain": cmd_maintain,
@@ -953,7 +972,11 @@ def main(argv=None):
                          "merge": lore_sync.cmd_merge, "sync-done": lore_sync.cmd_sync_done,
                          "sync-run": lore_sync.cmd_sync_run, "sync-log": lore_sync.cmd_sync_log,
                          "sync-timer": lore_sync.cmd_sync_timer})
-    if args.cmd not in ("init", "setup") and not os.path.isdir(store.root):
+    if args.cmd in ("store", "hub"):
+        sys.modules.setdefault("lore", sys.modules[__name__])
+        import lore_hub
+        handlers.update({"store": lore_hub.cmd_store, "hub": lore_hub.cmd_hub})
+    if args.cmd not in ("init", "setup", "store", "hub") and not os.path.isdir(store.root):
         print(f"Error: no store at {store.root}; run init first", file=sys.stderr)
         return 1
     try:

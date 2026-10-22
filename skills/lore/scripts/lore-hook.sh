@@ -20,6 +20,12 @@ tmp="$queue/.in-$stamp"
 { printf '{"lore_host":"%s","lore_event":"%s","lore_queued":%s,"payload":' "$host" "$event" "$(date +%s)"
   payload="$(head -c 65536)"; [[ -n "$payload" ]] && printf '%s' "$payload" || printf 'null'
   printf '}\n'; } > "$tmp" 2>/dev/null && mv "$tmp" "$queue/$stamp.json" 2>/dev/null
+# lore 2.0 runs beside 1.x: the same payload, queued for the 2.0 store's read counts.
+store2="${LORE_STORE2:-$HOME/.agents/lore}"
+if [[ -d "$store2/.git" && -f "$queue/$stamp.json" ]] && mkdir -p "$store2/.git/lore/queue" 2>/dev/null; then
+  cp "$queue/$stamp.json" "$store2/.git/lore/queue/.in-$stamp" 2>/dev/null \
+    && mv "$store2/.git/lore/queue/.in-$stamp" "$store2/.git/lore/queue/$stamp.json" 2>/dev/null
+fi
 
 [[ "${LORE_HOOK_NO_SPAWN:-}" == 1 ]] && exit 0     # tests: queue only
 sweep=""; [[ "$event" == SessionStart ]] && sweep="--sweep"
@@ -27,8 +33,9 @@ sweep=""; [[ "$event" == SessionStart ]] && sweep="--sweep"
 # it. macOS has no setsid(1); its stock perl does the same.
 if command -v setsid >/dev/null 2>&1; then detach=(setsid); else detach=(perl -MPOSIX -e 'POSIX::setsid(); exec @ARGV'); fi
 # After the harvest, the gated hub sync: free unless the memory changed (or a day passed). The
-# trigger is logged, so sync-log shows which session end started which sync.
+# trigger is logged, so sync-log shows which session end started which sync. Then the 2.0 step:
+# read counts, one commit, a push when a hub is set (a logged skip while there is no 2.0 store).
 LORE_HARVEST=1 nohup "${detach[@]}" sh -c \
-  'python3 "$1/lore.py" --store "$2" harvest --wait $4; python3 "$1/lore.py" --store "$2" sync-run --trigger "$3"' \
+  'python3 "$1/lore.py" --store "$2" harvest --wait $4; python3 "$1/lore.py" --store "$2" sync-run --trigger "$3"; python3 "$1/lore.py" --store "$2" store run --trigger "$3"' \
   sh "$here" "$store" "$host:$event" $sweep >>"$store/harvest.log" 2>&1 </dev/null &
 exit 0

@@ -1,5 +1,28 @@
 # Changelog
 
+## 2.0.0-p1 (unreleased)
+
+lore 2.0, phase 1: a plain git store with an optional private hub, beside 1.x. Nothing 1.x
+changes: its store, index, hooks, Tartib sync and timer keep working.
+
+- `lore store init|status|index|commit`: a git repo at `~/.agents/lore`. Rule files hold only
+  `- rule` lines; metadata lives in one sidecar per file under `.lore/meta/`, matched by text. A
+  line written by hand is adopted with an id and reported as an unmatched hand edit.
+- `INDEX.md` is built by code from `.lore/layout.json`, `core.md` and each sidecar's `read_when`,
+  under the budget (default 1,500 tokens). Not delivered to any host yet.
+- One commit per change, with a subject that says what changed. A staged secret refuses the
+  commit, naming the file and never the match.
+- Every git call is headless: no prompt, ssh in batch mode, no signing, no hooks, a timeout.
+- `lore hub set|status|create`: an optional private git hub. `set` does a test push and refuses a
+  repository `gh` reports as public; `create` uses `gh repo create --private` after a yes. Every
+  commit fetches, rebases and pushes: rule files merge by line, sidecars per rule and field, read
+  counts per machine, the index is rebuilt, a layout conflict keeps the hub's and saves the local
+  one as a proposal. A failed push is retried on the next run and reported after three.
+- Session end: after the 1.x harvest and sync-run, the hook records which memory files the
+  session read, commits and pushes.
+- `setup` creates the 2.0 store, asks for a hub on a terminal (`--hub URL`, `--no-hub`), and
+  writes a `~/.local/bin/lore` command; `setup --remove` removes only that command.
+
 ## 1.1.0 (2026-10-19)
 
 Hub sync no longer costs tokens in every agent session.
