@@ -1,0 +1,4 @@
+{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"file_path":"<root>/read.md"}}]}}
+{"type":"assistant","message":7}
+{"type":"assistant","message":{"content":[null,5,{"type":"tool_use","name":"Read","input":"x"},{"type":"tool_use","name":"Read","input":{"file_path":["<root>/read.md",null,4]}}]}}
+{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"file_path":"<root>/read.md"}}]}}

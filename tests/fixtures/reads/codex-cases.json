@@ -1,0 +1,159 @@
+[
+ {
+  "name": "literal object, never called",
+  "tool": "exec",
+  "input": "const x = {cmd: \"cat <root>/literal.md\"};\ntext(x)",
+  "want": {}
+ },
+ {
+  "name": "apply_patch text",
+  "tool": "apply_patch",
+  "input": "*** Add File: a.js\n+const x = {cmd: \"cat <root>/literal.md\"};",
+  "want": {}
+ },
+ {
+  "name": "in a string",
+  "tool": "exec",
+  "input": "const s = 'tools.exec_command({cmd: \"cat <root>/literal.md\"})'; text(s)",
+  "want": {}
+ },
+ {
+  "name": "in a comment",
+  "tool": "exec",
+  "input": "// tools.exec_command({cmd: \"cat <root>/literal.md\"})\ntext(1)",
+  "want": {}
+ },
+ {
+  "name": "in a block comment",
+  "tool": "exec",
+  "input": "/* tools.exec_command({cmd: 'cat <root>/literal.md'}) */ text(1)",
+  "want": {}
+ },
+ {
+  "name": "other tool",
+  "tool": "exec",
+  "input": "await tools.web__run({cmd: \"cat <root>/literal.md\"})",
+  "want": {}
+ },
+ {
+  "name": "non-literal cmd",
+  "tool": "exec",
+  "input": "const c = 'x'; await tools.exec_command({cmd: c + \" <root>/read.md\"})",
+  "want": {}
+ },
+ {
+  "name": "template with expression",
+  "tool": "exec",
+  "input": "await tools.exec_command({cmd: `cat ${p}/read.md`})",
+  "want": {}
+ },
+ {
+  "name": "single quotes",
+  "tool": "exec",
+  "input": "await tools.exec_command({cmd: 'cat <root>/read.md'});",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "name": "quoted key",
+  "tool": "exec",
+  "input": "await tools.exec_command({\"cmd\": \"cat <root>/read.md\"});",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "name": "single quoted key",
+  "tool": "exec",
+  "input": "await tools.exec_command({'cmd': 'cat <root>/read.md'});",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "name": "plain template",
+  "tool": "exec",
+  "input": "await tools.exec_command({cmd: `cat <root>/read.md`});",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "name": "other keys first",
+  "tool": "exec",
+  "input": "const r = await tools.exec_command({workdir: '/home/fixture-user', yield_time_ms: 5000, cmd: \"cat <root>/read.md\"}); text(r.output)",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "name": "whitespace",
+  "tool": "exec",
+  "input": "await tools . exec_command ( { cmd : 'cat <root>/read.md' } )",
+  "want": {}
+ },
+ {
+  "name": "spaced call",
+  "tool": "exec",
+  "input": "await tools.exec_command (\n  {\n    cmd: 'cat <root>/read.md', // note\n  }\n)",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "name": "escapes",
+  "tool": "exec",
+  "input": "await tools.exec_command({cmd: \"cat <root>/read.md\\ncat <root>/two.md\"})",
+  "want": {
+   "read.md": 1,
+   "two.md": 1
+  }
+ },
+ {
+  "name": "two calls",
+  "tool": "exec",
+  "input": "await tools.exec_command({cmd: 'cat <root>/read.md'}); await tools.exec_command({cmd: 'cat <root>/read.md'})",
+  "want": {
+   "read.md": 2
+  }
+ },
+ {
+  "name": "prefixed name",
+  "tool": "exec",
+  "input": "await mytools.exec_command({cmd: 'cat <root>/literal.md'})",
+  "want": {}
+ },
+ {
+  "name": "nested value skipped",
+  "tool": "exec",
+  "input": "await tools.exec_command({env: {cmd: 'cat <root>/literal.md'}, cmd: 'cat <root>/read.md'})",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "name": "later duplicate key not literal",
+  "tool": "exec",
+  "input": "await tools.exec_command({cmd: 'cat <root>/literal.md', cmd: c})",
+  "want": {}
+ },
+ {
+  "name": "apply_patch with a call-shaped line",
+  "tool": "apply_patch",
+  "input": "+await tools.exec_command({cmd: 'cat <root>/literal.md'});",
+  "want": {}
+ },
+ {
+  "name": "concatenation overrides earlier literal",
+  "tool": "exec",
+  "input": "await tools.exec_command({cmd: 'cat <root>/literal.md', cmd: 'a' + 'b'})",
+  "want": {}
+ },
+ {
+  "name": "template expression in path",
+  "tool": "exec",
+  "input": "await tools.exec_command({cmd: `cat <root>/${name}.md`})",
+  "want": {}
+ }
+]

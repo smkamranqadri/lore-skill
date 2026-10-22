@@ -45,6 +45,9 @@ check claude "$fx/empty.jsonl" "$store" '{}'
 check claude "$fx" "$store" '{}'
 check bogus "$fx/claude.jsonl" "$store" '{}'
 
+# shell, Codex JS, malformed-record and symlink cases (tables in tests/fixtures/reads)
+python3 -I "$fx/run_cases.py" "$repo_root/skills/lore/scripts" "$fx" "$store" || fail "case tables, see above"
+
 sup claude True; sup codex True; sup agy True; sup generic True
 sup bogus False; sup "" False
 

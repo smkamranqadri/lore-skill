@@ -1,0 +1,363 @@
+[
+ {
+  "cmd": "cat /tmp/fictional-source.txt\npython3 /tmp/lore.py show <root>/ignored.md",
+  "want": {}
+ },
+ {
+  "cmd": "printf x\ncat <root>/read.md",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "cat <root>/a.md\ncat <root>/b.md",
+  "want": {
+   "a.md": 1,
+   "b.md": 1
+  }
+ },
+ {
+  "cmd": "echo 'one\ncat <root>/quoted.md'",
+  "want": {}
+ },
+ {
+  "cmd": "sed -i 's/old/new/' <root>/edited.md",
+  "want": {}
+ },
+ {
+  "cmd": "sed -i.bak 's/old/new/' <root>/edited.md",
+  "want": {}
+ },
+ {
+  "cmd": "sed --in-place 's/old/new/' <root>/edited.md",
+  "want": {}
+ },
+ {
+  "cmd": "sed -ni 's/old/new/p' <root>/edited.md",
+  "want": {}
+ },
+ {
+  "cmd": "sed -n 1,5p <root>/read.md",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "sed -n -e 1,5p <root>/read.md",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "sed -e s/a/b/ <root>/read.md",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "sed -e <root>/script.md <root>/read.md",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "sed -n '/x/p' <root>/read.md",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "grep -e <root>/pattern.md /tmp/fictional-source.txt",
+  "want": {}
+ },
+ {
+  "cmd": "grep -e <root>/pattern.md <root>/read.md",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "grep <root>/pattern.md <root>/read.md",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "grep -n foo <root>/read.md",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "grep -rn --include '*.md' foo <root>/read.md",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "grep -A 3 foo <root>/read.md",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "grep --regexp=<root>/pattern.md /tmp/fictional-source.txt",
+  "want": {}
+ },
+ {
+  "cmd": "rg -e <root>/pattern.md /tmp/fictional-source.txt",
+  "want": {}
+ },
+ {
+  "cmd": "rg <root>/pattern.md <root>/read.md",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "rg -g '*.md' foo <root>/read.md",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "rg --files <root>/read.md",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "sed -e 1d -e <root>/script.md /tmp/fictional-source.txt",
+  "want": {}
+ },
+ {
+  "cmd": "cat -n <root>/read.md",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "head -n 5 <root>/read.md",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "printf '%s' ';' cat <root>/literal.md",
+  "want": {}
+ },
+ {
+  "cmd": "echo 'a;b' && cat <root>/read.md",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "cat '$HOME/.agents/lore/literal.md'",
+  "want": {}
+ },
+ {
+  "cmd": "cat \"$HOME/.agents/lore/read.md\"",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "cat $HOME/.agents/lore/read.md",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "cat ${HOME}/.agents/lore/read.md",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "cat ~/.agents/lore/read.md",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "cat '~/.agents/lore/literal.md'",
+  "want": {}
+ },
+ {
+  "cmd": "cat \"~/.agents/lore/literal.md\"",
+  "want": {}
+ },
+ {
+  "cmd": "cat <<'EOF'\n<root>/literal.md\nEOF\ncat <root>/read.md",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "cat <<EOF\n<root>/literal.md\nEOF",
+  "want": {}
+ },
+ {
+  "cmd": "cat <<-EOF\n\t<root>/literal.md\n\tEOF\ncat <root>/read.md",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "cat > <root>/written.md <<'EOF'\nbody\nEOF\ncat <root>/read.md",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "cat < <root>/read.md",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "cat <<root>/read.md",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "cat <<< <root>/literal.md",
+  "want": {}
+ },
+ {
+  "cmd": "cat > <root>/written.md",
+  "want": {}
+ },
+ {
+  "cmd": "cat <root>/read.md > /tmp/out.txt",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "cat <root>/read.md 2>&1 | head -3",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "cat <root>/read.md &> /tmp/out.txt",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "echo hi > <root>/written.md",
+  "want": {}
+ },
+ {
+  "cmd": "bash -lc \"cat <root>/read.md\"",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "sudo -n cat <root>/read.md",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "FOO=1 cat <root>/read.md",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "# cat <root>/comment.md\ncat <root>/read.md",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "cat <root>/read.md <root>/read.md",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "cat <root>/notes.txt",
+  "want": {}
+ },
+ {
+  "cmd": "cat <root>/.lore/state.md",
+  "want": {}
+ },
+ {
+  "cmd": "python3 <root>/scripts/lore.py show <root>/ignored.md",
+  "want": {}
+ },
+ {
+  "cmd": "rg -g <root>/glob.md foo <root>/read.md",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "rg --glob <root>/glob.md foo <root>/read.md",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "grep --include <root>/glob.md foo <root>/read.md",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "grep -f <root>/patterns.md <root>/read.md",
+  "want": {
+   "patterns.md": 1,
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "sed -f <root>/script.md <root>/read.md",
+  "want": {
+   "script.md": 1,
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "cat $HOMEDIR/.agents/lore/literal.md",
+  "want": {}
+ },
+ {
+  "cmd": "head -n 5 -- <root>/read.md",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "grep -e a -e <root>/p2.md <root>/read.md",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "grep -e foo --include <root>/glob.md <root>/read.md",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "rg -e foo -g <root>/glob.md <root>/read.md",
+  "want": {
+   "read.md": 1
+  }
+ },
+ {
+  "cmd": "head -n <root>/count.md <root>/read.md",
+  "want": {
+   "read.md": 1
+  }
+ }
+]
