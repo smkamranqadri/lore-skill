@@ -953,6 +953,17 @@ def main(argv=None):
     hb.add_argument("url", nargs="?", help="set: the private repository's git URL")
     hb.add_argument("--name", default="lore-memory", help="create: the repository name")
     hb.add_argument("--yes", action="store_true", help="create: do not ask for confirmation")
+    rm = sub.add_parser("remember", help="queue a rule for the Loremaster; it is filed at session end")
+    rm.add_argument("text")
+    rm.add_argument("--explicit", action="store_true", help="the user stated it outright (remember/always/never)")
+    rm.add_argument("--quote", default="", help="the user's words")
+    rm.add_argument("--session", default="", help="the session id (default: LORE_SESSION)")
+    rm.add_argument("--host", default="", help="the host (default: LORE_HOST)")
+    ib = sub.add_parser("inbox", help="what waits for you: list, accept or reject by id")
+    ib.add_argument("action", choices=["list", "accept", "reject"])
+    ib.add_argument("id", nargs="?")
+    ck = sub.add_parser("check", help="show each model role's command; --live calls each once")
+    ck.add_argument("--live", action="store_true", help="run each command headless with a tiny fixed prompt")
     args = p.parse_args(argv)
     store = Store(os.path.abspath(os.path.expanduser(args.store)), today(args))
     handlers = {"init": cmd_init, "add": cmd_add, "drop": cmd_drop, "maintain": cmd_maintain,
@@ -972,11 +983,12 @@ def main(argv=None):
                          "merge": lore_sync.cmd_merge, "sync-done": lore_sync.cmd_sync_done,
                          "sync-run": lore_sync.cmd_sync_run, "sync-log": lore_sync.cmd_sync_log,
                          "sync-timer": lore_sync.cmd_sync_timer})
-    if args.cmd in ("store", "hub"):
+    if args.cmd in ("store", "hub", "remember", "inbox", "check"):
         sys.modules.setdefault("lore", sys.modules[__name__])
         import lore_hub
-        handlers.update({"store": lore_hub.cmd_store, "hub": lore_hub.cmd_hub})
-    if args.cmd not in ("init", "setup", "store", "hub") and not os.path.isdir(store.root):
+        handlers.update({"store": lore_hub.cmd_store, "hub": lore_hub.cmd_hub, "remember": lore_hub.cmd_remember,
+                         "inbox": lore_hub.cmd_inbox, "check": lore_hub.cmd_check})
+    if args.cmd not in ("init", "setup", "store", "hub", "remember", "inbox", "check") and not os.path.isdir(store.root):
         print(f"Error: no store at {store.root}; run init first", file=sys.stderr)
         return 1
     try:

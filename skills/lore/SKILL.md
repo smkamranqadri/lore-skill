@@ -2,7 +2,7 @@
 name: lore
 description: "The user's memory across projects and hosts: how they want coding agents to work, hard rules, and gotchas per stack. Its index is already in your global instructions. Use this skill when the user says remember, always, never, or drop that; when they correct you in a way that should hold in other projects; when you need a category file the index points to; or when the user asks to sync memory, learn from taste, or see what lore knows. What is true in one project only belongs in that project's own memory (KIS), never here."
 metadata:
-  version: "2.0.0-p1"
+  version: "2.0.0-p2"
 ---
 
 # lore

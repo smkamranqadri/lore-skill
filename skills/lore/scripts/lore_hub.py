@@ -13,9 +13,12 @@ import json
 import os
 import re
 import shlex
+import secrets
 import shutil
+import signal
 import subprocess
 import sys
+import tempfile
 
 import lore
 import lore_store
@@ -25,6 +28,9 @@ from lore_store import Store2, GitError
 REMOTE = "hub"
 FAILS_REPORTED = 3
 GH_TIMEOUT = 60
+REMEMBER_MAX = 1000
+LOREMASTER_MODELS_DEFAULT = "claude,codex"
+CHECK_PROMPT = 'Reply with only this JSON and nothing else: {"ops": [], "answer": "ok"}'
 SHIM_MARK = "# written by lore setup; `lore.py setup --remove` deletes it"
 GITHUB_RE = re.compile(r"^(?:https://(?:[^@/]+@)?github\.com/|git@github\.com:|ssh://git@github\.com/)"
                        r"([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+?)(?:\.git)?/?$")
@@ -326,6 +332,8 @@ def store_run(store, trigger, force=False):
             done = None
         log(f"store-run: committed {done[0]} {done[1]} ({trigger})" if done else f"store-run: nothing to commit ({trigger})")
         log("store-run: " + push_step(store, force))
+        if file_step(store, trigger, force):
+            log("store-run: " + push_step(store, force))
 
 
 # ---- commands ---------------------------------------------------------------------------------
@@ -417,6 +425,402 @@ def cmd_hub(_, args):
         if st["push_fails"]:
             print(f"failing: {fails_line(st)}")
             print(f"last error: {st.get('last_error', '')}")
+
+
+# ---- lore remember and the filing step --------------------------------------------------------
+
+def remember_dir(store):
+    return store.local("remember")
+
+
+def private_dir(path):
+    """The directory, created or tightened to 0700 whatever the umask."""
+    os.makedirs(path, exist_ok=True)
+    os.chmod(path, 0o700)
+    return path
+
+
+def write_private(path, text):
+    """Write a file atomically, created exclusively as 0600 (the temporary file too)."""
+    tmp = os.path.join(os.path.dirname(path), ".in-" + os.path.basename(path))
+    with contextlib.suppress(FileNotFoundError):
+        os.unlink(tmp)
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "w") as f:
+        f.write(text)
+    os.replace(tmp, path)
+
+
+def cmd_remember(_, args):
+    """Queue one item for the Loremaster, on this machine only. No model call, no commit."""
+    store = open_store(args)
+    store.require()
+    text = " ".join((args.text or "").split())
+    if not text:
+        raise lore.LoreError("usage: lore remember \"<text>\" [--explicit] [--quote Q]")
+    if len(text) > REMEMBER_MAX:
+        raise lore.LoreError(f"too long ({len(text)} characters, at most {REMEMBER_MAX}); say it shorter")
+    if lore.SECRET_RE.search(text) or lore.SECRET_RE.search(args.quote or ""):
+        raise lore.LoreError("refused: that looks like a secret; nothing was queued")
+    item = {"text": text, "explicit": bool(args.explicit), "quote": " ".join((args.quote or "").split())[:300],
+            "session": args.session or os.environ.get("LORE_SESSION", ""),
+            "host": args.host or os.environ.get("LORE_HOST", ""), "created": lore_store.now_iso()}
+    d = private_dir(remember_dir(store))
+    name = f"{dt.datetime.now().strftime('%Y%m%dT%H%M%S%f')}-{secrets.token_hex(3)}.json"
+    write_private(os.path.join(d, name), json.dumps(item, sort_keys=True) + "\n")
+    print("queued; it is filed at the end of this session")
+
+
+def queued_items(store):
+    """[(path, item)] oldest first, and notes for the log. An unreadable entry is reported and left."""
+    out, notes = [], []
+    for p in sorted(glob.glob(os.path.join(remember_dir(store), "*.json"))):
+        try:
+            with open(p) as f:
+                it = json.load(f)
+            if not isinstance(it, dict) or not isinstance(it.get("text"), str) or not it["text"].strip():
+                raise ValueError
+        except (ValueError, OSError):
+            notes.append(f"filing: left an unreadable queue entry {os.path.basename(p)}")
+            continue
+        out.append((p, it))
+    return out, notes
+
+
+def first_word(command):
+    """(the first shell word with its quotes resolved, the rest of the command untouched), or
+    (None, "") for an empty command. Handles '...', "..." and backslash like sh does."""
+    i, n, word, started, quote = 0, len(command), [], False, None
+    while i < n and command[i].isspace():
+        i += 1
+    while i < n:
+        c = command[i]
+        if quote is None and c.isspace():
+            break
+        started = True
+        if quote == "'":
+            if c == "'":
+                quote = None
+            else:
+                word.append(c)
+        elif c == "\\" and i + 1 < n and (quote is None or command[i + 1] in '"\\$`'):
+            i += 1
+            word.append(command[i])
+        elif quote == '"':
+            if c == '"':
+                quote = None
+            else:
+                word.append(c)
+        elif c in "'\"":
+            quote = c
+        else:
+            word.append(c)
+        i += 1
+    if quote:
+        raise lore.LoreError("the role command has an unclosed quote")
+    return ("".join(word) if started else None), command[i:]
+
+
+def absolute_command(command):
+    """The command with its binary as an absolute path, so a bare PATH under a timer finds it."""
+    word, rest = first_word(command)
+    if not word:
+        raise lore.LoreError("the role command is empty")
+    exe = word if os.path.isabs(word) else shutil.which(word)
+    if not exe or not os.access(exe, os.X_OK):
+        raise lore.LoreError(f"the role command's binary was not found: {word}")
+    return shlex.quote(exe) + rest
+
+
+def model_timeout():
+    try:
+        return float(os.environ.get("LORE_MODEL_TIMEOUT") or lore_sync.SYNC_TIMEOUT)
+    except ValueError:
+        return float(lore_sync.SYNC_TIMEOUT)
+
+
+def role_command(store, role):
+    """(name, command) of a role, or (None, None). The LORE_<ROLE>_CMD variable wins, then the
+    config line `<role>: <command>`, then each host adapter's `<role>:` line in the order of the
+    config `<role>_models` (the 2.0 store's config for loremaster, the 1.x store's for the rest)."""
+    env = os.environ.get(f"LORE_{role.upper()}_CMD")
+    if env:
+        return "override", env
+    cfg = store.config()
+    if cfg.get(role):
+        return "config", cfg[role]
+    default = {"loremaster": LOREMASTER_MODELS_DEFAULT, "extract": "codex,claude,cmd,agy",
+               "review": "claude,codex", "sync": "codex"}[role]
+    key = {"extract": "extractors", "review": "reviewers", "sync": "sync_models"}.get(role, role + "_models")
+    hosts = {h["name"]: h for h in lore.load_hosts()}
+    for n in (x.strip() for x in cfg.get(key, default).split(",")):
+        h = hosts.get(n)
+        if h and h.get(role) and host_binary(h[role]):
+            return n, h[role]
+    return None, None
+
+
+def host_binary(command):
+    """True when the adapter line's first word is an installed executable."""
+    try:
+        word, _ = first_word(command)
+    except lore.LoreError:
+        return False
+    exe = word if word and os.path.isabs(word) else (shutil.which(word) if word else None)
+    return bool(exe and os.access(exe, os.X_OK))
+
+
+def run_command(command, prompt, timeout=None):
+    """Run a role command headless with the prompt in $LORE_PROMPT_FILE; return its stdout.
+    Raises LoreError on a bad exit or a timeout (the whole process group is killed)."""
+    timeout = timeout or model_timeout()
+    command = absolute_command(command)
+    fd, pf = tempfile.mkstemp(prefix="lore-role-", suffix=".txt")
+    try:
+        with os.fdopen(fd, "w") as f:
+            f.write(prompt)
+        env = dict(os.environ, LORE_HARVEST="1", LORE_PROMPT_FILE=pf)
+        p = subprocess.Popen(["sh", "-c", command], env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE, text=True, start_new_session=True)
+        try:
+            out, err = p.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            with contextlib.suppress(OSError):
+                os.killpg(p.pid, signal.SIGKILL)
+            p.communicate()
+            raise lore.LoreError(f"the model command timed out after {timeout:g}s")
+        if p.returncode:
+            raise lore.LoreError(f"the model command exited {p.returncode}: {lore_store.clean_err(err or out)}")
+        return out
+    finally:
+        with contextlib.suppress(OSError):
+            os.unlink(pf)
+
+
+def run_model(store):
+    """The injected `run_model(prompt) -> str` for the Loremaster role."""
+    name, command = role_command(store, "loremaster")
+    if not command:
+        raise lore.LoreError("no loremaster command: no host adapter with a 'loremaster:' line is installed")
+    return lambda prompt: run_command(command, prompt)
+
+
+def filing_backing_off(st):
+    if not st.get("file_fails") or not st.get("file_last_fail"):
+        return False
+    age = (dt.datetime.now().astimezone() - dt.datetime.fromisoformat(st["file_last_fail"])).total_seconds()
+    return age < lore_sync.BACKOFF_MIN * 60
+
+
+def receipts_dir(store):
+    return store.local("remember-receipts")
+
+
+def norm(text):
+    return " ".join(str(text or "").split())
+
+
+def accounted_items(ops, items):
+    """The queued (path, item) pairs the applied ops account for: an add or supersede whose quote is
+    that item's quote (or its text). Anything else stays queued, whatever the reply said."""
+    quotes = {norm(o.get("quote")) for o in ops if isinstance(o, dict) and o.get("op") in ("add", "supersede")}
+    return [(p, it) for p, it in items if norm(it.get("quote")) in quotes or norm(it.get("text")) in quotes]
+
+
+def dequeue(paths):
+    for p in paths:
+        with contextlib.suppress(FileNotFoundError):
+            os.unlink(p)
+
+
+def recover_filing(store):
+    """Receipts left by a run that stopped between the commit and the dequeue: when the commit
+    carrying the receipt's token is in history, the receipt's items were filed, so they leave the
+    queue without another model call. A receipt whose commit never happened is dropped."""
+    for rp in sorted(glob.glob(os.path.join(receipts_dir(store), "*.json"))):
+        try:
+            with open(rp) as f:
+                rc = json.load(f)
+            token, files = rc["token"], rc["files"]
+            if not re.fullmatch(r"[0-9a-f]{12}", token) or not isinstance(files, list):
+                raise ValueError
+        except (ValueError, KeyError, OSError):
+            log(f"store-run: filing: left an unreadable receipt {os.path.basename(rp)}")
+            continue
+        try:
+            found = store.git("log", "--fixed-strings", f"--grep=loremaster {token}:", "--format=%H", "-n", "1")[1].strip()
+        except GitError as err:
+            log(f"store-run: filing: could not read history for receipt {token}: {err}")
+            continue
+        if found:
+            dequeue(os.path.join(remember_dir(store), os.path.basename(x)) for x in files)
+            log(f"store-run: filing: recovered receipt {token}; commit {found[:7]} had filed {len(files)} item(s), dequeued")
+        else:
+            log(f"store-run: filing: dropped receipt {token}; its commit never happened, the items stay queued")
+        with contextlib.suppress(FileNotFoundError):
+            os.unlink(rp)
+
+
+def file_step(store, trigger, force=False):
+    """Session end, after the reads: file the queued items through the Loremaster. No queue, no
+    model call. An item leaves the queue only when the applied batch accounts for it (an add or
+    supersede quoting it) and a receipt tied to the commit exists; everything else stays queued,
+    with the reason in the log, and backs off like a failed sync. Returns True when it made a
+    commit (so the caller pushes). Never raises."""
+    try:
+        recover_filing(store)
+    except Exception as err:
+        log(f"store-run: filing: receipt recovery failed: {type(err).__name__}: {lore.redact(str(err))[:200]}")
+    items, notes = queued_items(store)
+    for n in notes:
+        log(f"store-run: {n}")
+    if not items:
+        log(f"store-run: filing skipped, nothing queued ({trigger})")
+        return False
+    st = load_state(store)
+    if filing_backing_off(st) and not force:
+        log(f"store-run: filing waits, {len(items)} item(s) queued; backing off after a failed run "
+            f"(under {lore_sync.BACKOFF_MIN} min ago)")
+        return False
+    token = secrets.token_hex(6)
+    receipt = os.path.join(private_dir(receipts_dir(store)), token + ".json")
+    box = {}
+
+    def record(reply):   # between the reply and the commit: the receipt that lets a crash recover
+        try:
+            ops = lore_master.parse_reply(reply)["ops"]
+        except lore.LoreError:
+            return
+        box["ops"] = ops
+        box["done"] = accounted_items(ops, items)
+        if box["done"]:
+            write_private(receipt, json.dumps({"token": token, "files": [os.path.basename(p) for p, _ in box["done"]],
+                                               "created": lore_store.now_iso()}) + "\n")
+    try:
+        sys.modules.setdefault("lore", lore)
+        import lore_master
+        model = run_model(store)
+
+        def run_and_record(prompt):
+            reply = model(prompt)
+            record(reply)
+            return reply
+        res = lore_master.file_items(store, [it for _, it in items], run_and_record, source=f"loremaster {token}")
+        rejected = res.get("rejected") or []
+        error = "the Loremaster's reply was rejected, nothing written: " + "; ".join(str(m) for m in rejected[:5]) if rejected else None
+    except Exception as err:   # the step must never break the session-end run
+        res, error = {}, f"{type(err).__name__}: {lore.redact(str(err))}"[:400]
+    if error:
+        with contextlib.suppress(FileNotFoundError):
+            os.unlink(receipt)
+        st["file_fails"] = st.get("file_fails", 0) + 1
+        st["file_last_fail"] = lore_store.now_iso()
+        st["file_last_error"] = error
+        save_state(store, st)
+        log(f"store-run: filing FAILED, {len(items)} item(s) stay queued; {error}")
+        return False
+    done = box.get("done", [])
+    dequeue(p for p, _ in done)
+    with contextlib.suppress(FileNotFoundError):
+        os.unlink(receipt)
+    if len(done) < len(items):
+        st["file_fails"] = st.get("file_fails", 0) + 1
+        st["file_last_fail"] = lore_store.now_iso()
+        st["file_last_error"] = f"the reply accounted for {len(done)} of {len(items)} item(s)"
+        save_state(store, st)
+        log(f"store-run: filing INCOMPLETE, {len(items) - len(done)} item(s) stay queued; "
+            f"the reply accounted for {len(done)} of {len(items)} ({trigger})")
+    else:
+        for k in ("file_fails", "file_last_fail", "file_last_error"):
+            st.pop(k, None)
+        save_state(store, st)
+    if done:
+        log(f"store-run: filed {len(done)} item(s); commit {res.get('commit') or 'none'}, "
+            f"{len(res.get('changed') or [])} file(s), {len(res.get('inbox') or [])} inbox item(s) ({trigger})")
+    if res.get("answer"):
+        log("store-run: loremaster: " + lore.redact(" ".join(str(res["answer"]).split()))[:300])
+    return bool(res.get("commit"))
+
+
+# ---- lore inbox and lore check ----------------------------------------------------------------
+
+def inbox_summary(it):
+    """One redacted line saying what an Inbox item is about."""
+    p = it.get("payload") if isinstance(it.get("payload"), dict) else {}
+    if it["kind"] == "layout":
+        what = "top: " + ", ".join(str(x) for x in (p.get("top") or []))
+    elif it["kind"] in ("retire", "hand-edit"):
+        what = f"{p.get('file', '')} {p.get('rule_id', '')}: {p.get('text') or p.get('reason') or ''}"
+    else:
+        what = json.dumps(p, sort_keys=True)
+    return lore.redact(" ".join(what.split()))[:160]
+
+
+def cmd_inbox(_, args):
+    store = open_store(args)
+    store.require()
+    sys.modules.setdefault("lore", lore)
+    import lore_master
+    if args.action != "list" and not args.id:
+        raise lore.LoreError(f"usage: lore inbox {args.action} <id>")
+    with store.locked():   # C's functions all expect the caller to hold the store lock
+        if args.action == "list":
+            items = lore_master.inbox_list(store)
+            if not items:
+                print("inbox: empty")
+            for it in items:
+                print(f"{it['id']}  {it['kind']}  {inbox_summary(it)}")
+        elif args.action == "accept":
+            res = lore_master.inbox_accept(store, args.id)
+            print(f"accepted {args.id}: " + (f"committed {res['commit']}" if res.get("commit") else "nothing to commit"))
+            line = push_step(store, force=True)
+            print(line)
+            if "FAILED" in line:
+                raise lore.LoreError("committed locally; the push failed")
+        else:
+            head = store.git("rev-parse", "HEAD")[1].strip()
+            lore_master.inbox_reject(store, args.id)
+            print(f"rejected {args.id}")
+            if store.git("rev-parse", "HEAD")[1].strip() != head:   # a rejected hand edit is a commit
+                line = push_step(store, force=True)
+                print(line)
+                if "FAILED" in line:
+                    raise lore.LoreError("committed locally; the push failed")
+
+
+def cmd_check(store1, args):
+    """Report each role's command; run it headless with a tiny fixed prompt only with --live."""
+    store = open_store(args)
+    rows = []
+    for role in ("loremaster", "extract", "review", "sync"):
+        name, command = role_command(store if role == "loremaster" else store1, role)
+        if not command:
+            rows.append((role, "unavailable", "no command (no host adapter line, or its CLI is not installed)", None))
+            continue
+        try:
+            shown = absolute_command(command)
+        except lore.LoreError as err:
+            rows.append((role, "BROKEN", f"{name}: {err}", None))
+            continue
+        rows.append((role, "ok", f"{name}: {shown}", command))
+    bad = False
+    for role, state, detail, command in rows:
+        live = ""
+        if args.live and state == "ok":
+            t0 = dt.datetime.now()
+            try:
+                out = run_command(command, CHECK_PROMPT if role == "loremaster" else "Reply with the single word ok.")
+                live = f"  live: ok in {(dt.datetime.now() - t0).total_seconds():.1f}s, replied {len(out.strip())} characters"
+                if not out.strip():
+                    raise lore.LoreError("empty reply")
+            except lore.LoreError as err:
+                state, live, bad = "FAILED", f"  live: {err}", True
+        bad = bad or state == "BROKEN"
+        print(f"{role}: {state}  {detail}{live}")
+    if not args.live:
+        print("not run live (add --live to call each model once)")
+    if bad:
+        raise lore.LoreError("a role command is broken")
 
 
 # ---- setup: the 2.0 store, the hub question, the shim -----------------------------------------

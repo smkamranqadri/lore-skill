@@ -1,5 +1,24 @@
 # Changelog
 
+## 2.0.0-p2 (unreleased)
+
+lore 2.0, phase 2, commands and wiring (the Loremaster itself is `lore_master.py`, stream C).
+1.x behaviour is unchanged.
+
+- `lore remember "<text>" [--explicit] [--quote Q]`: queues one item on this machine
+  (`.git/lore/remember/`); no model call, no commit. A secret-looking text is refused.
+- Session end (`store run`): after the reads, a non-empty queue is filed through the Loremaster
+  in one model call, committed and pushed. An empty queue makes no call (a logged skip). Items
+  leave the queue only when the batch was applied; a rejected reply or a failing or hanging model
+  keeps them, logs why, and backs off for the same 120 minutes as a failed sync.
+- Role commands: `loremaster:` in config, else each host adapter's line (Claude `sonnet` medium,
+  no tools; Codex `gpt-6.1-sol` medium, read-only; Command Code and agy are listed but outside
+  the default order `loremaster_models: claude,codex`). Run with an absolute binary, the prompt in
+  `$LORE_PROMPT_FILE`, hooks off, and a 300 s timeout that kills the process group.
+- `lore inbox list|accept|reject <id>`: acts on what waits for you; an accepted item is its own
+  commit and is pushed.
+- `lore check [--live]`: shows each role's command; `--live` runs each once with a tiny prompt.
+
 ## 2.0.0-p1 (unreleased)
 
 lore 2.0, phase 1: a plain git store with an optional private hub, beside 1.x. Nothing 1.x
