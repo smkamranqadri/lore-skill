@@ -24,8 +24,17 @@
 - lore 2.0 (2026-10-22): planned, Phase mode, `../intent/plan-2026-10-22-lore-2.0.md`. 1.1.0 is
   held, not released; the owner commits the 1.1.0 work to branch `lore-2.0` and P1 builds there.
   Soak 2 keeps running so 1.x memory syncs until the 2.0 switch; 2.0 runs beside 1.x until P5.
-  Plan reviewed (Fable 5.1 high, approve with changes, all 15 findings applied). Next: owner
-  commits 1.1.0 to `lore-2.0` and tags `v1.1.0` (not released); then P1.
+  Plan reviewed (Fable 5.1 high, approve with changes, all 15 findings applied). Branch
+  `lore-2.0` (local, not pushed); `v1.1.0` tagged locally at `e52b56e`.
+- P1 done 2026-10-23 and installed live as 2.0.0-p1 (`lore-2.0` at `75cbc2d`; proof in the plan's
+  Status). 2.0 store `~/.agents/lore`, private hub `smkamranqadri/lore-memory`, shim
+  `~/.local/bin/lore`. 1.x keeps running beside it. Next: P2 (Loremaster).
+- Soak 2 issue (1.x, before P1): 23:29 run on 2026-10-22 logged `fail` because the headless Codex
+  had no Tartib tools; Tartib MCP and the Codex token both answer 200 at 01:2x, so it was transient.
+  Backoff to ~01:29, 7 files pending push; next session end retries.
+- orch on Herdr: spawn pastes without submitting, finish notices missing or early (Tartib #524,
+  orch-skill ideas 15 and 16); agent `orch-fix` in the orch-skill workspace, coordinated by the
+  owner. Until fixed, this orch tracks completion with its own watchers and `verify.sh`.
 - Scratch left running from the understory evaluation (session scratchpad, not this repo):
   CLIProxyAPI on 127.0.0.1:8317 in the owner's terminal, understory on :3800 with dreaming every
   5 min. Stop both when the evaluation ends.
