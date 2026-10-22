@@ -1,8 +1,13 @@
 """lore sync: keep the memory of several machines the same through a notes hub (Tartib).
 
 Scripts cannot reach the hub (no token; the hub is an MCP). An agent session that has the hub's
-MCP runs commands/sync.md, which moves files between the hub and a folder; this module does the
+MCP runs commands/sync.md, which moves files between the hub and a folder. A timer starts that
+session headless (sync-run), only when the free gate says a sync is needed; this module does the
 part that must be exact:
+
+  sync-run      the gate: skip for free, or run the headless agent; every call is logged
+  sync-log      summarise that log, to tune the timer interval
+  sync-timer    install, remove or check the systemd user timer that calls sync-run
 
   sync-status   what is due: local files changed since the last sync, and the hub notes seen then
   merge         fold a folder of hub files into the local store
@@ -16,10 +21,16 @@ was seen again after it. Two machines that merge each other's exports, in either
 """
 
 import datetime as dt
+import fcntl
 import hashlib
 import json
 import os
+import re
 import shutil
+import subprocess
+import sys
+import tempfile
+import time
 
 import lore
 
@@ -267,3 +278,207 @@ def cmd_sync_done(store, args):
     except lore.LoreError as err:
         print(f"deliver: {err}")
     print(f"sync recorded for {store.day.isoformat()}: {len(st['synced'])} file(s)")
+
+
+# ---- scheduled run ----------------------------------------------------------------------------
+
+SYNC_TIMEOUT = 300
+BACKOFF_MIN = 120   # after a failed run, wait this long before the gate runs the agent again
+SYNC_MODELS_DEFAULT = "codex"
+RUNS_KEPT = 20
+LOG_NAME = "sync-log.jsonl"
+UNIT = "lore-sync"
+
+
+def _now():
+    return dt.datetime.now().astimezone().replace(microsecond=0)
+
+
+def _log_line(store, rec):
+    with open(store.path(LOG_NAME), "a") as f:
+        f.write(json.dumps(rec, sort_keys=True) + "\n")
+
+
+def _why(store, st, day):
+    """Why a sync is wanted now, or None. Same test as sync_wanted, with the reason."""
+    if not store.config().get("hub"):
+        return None, "no hub configured"
+    last = st.get("last_sync")
+    if not last:
+        return "never synced", ""
+    if (day - lore.parse_date(last)).days >= STALE_DAYS:
+        return "last sync " + last, ""
+    changed = changed_files(store, st)
+    if changed:
+        return f"{len(changed)} local change(s)", ""
+    return None, "nothing to sync"
+
+
+def _backing_off(store, now):
+    """True when the last logged run failed less than BACKOFF_MIN minutes ago."""
+    try:
+        with open(store.path(LOG_NAME)) as f:
+            lines = [l for l in f if l.strip()]
+    except FileNotFoundError:
+        return False
+    for l in reversed(lines):
+        r = json.loads(l)
+        if r.get("action") == "fail":
+            return (now - dt.datetime.fromisoformat(r["ts"])).total_seconds() < BACKOFF_MIN * 60
+        if r.get("action") == "run":
+            return False
+    return False
+
+
+def _sync_command(store):
+    override = os.environ.get("LORE_SYNC_CMD")
+    if override:
+        return "override", override
+    if store.config().get("sync_cmd"):   # for a machine whose agent CLI needs its own invocation
+        return "config", store.config()["sync_cmd"]
+    hosts = {h["name"]: h for h in lore.load_hosts()}
+    for n in (x.strip() for x in store.config().get("sync_models", SYNC_MODELS_DEFAULT).split(",")):
+        h = hosts.get(n)
+        if h and h.get("sync") and shutil.which(h["sync"].split()[0]):
+            return n, h["sync"]
+    return None, None
+
+
+def _tokens(text):
+    m = re.search(r"tokens used\s*\n?\s*([\d,]+)", text)
+    return int(m.group(1).replace(",", "")) if m else None
+
+
+def _keep_runs(store):
+    d = store.path("sync-runs")
+    names = sorted(os.listdir(d)) if os.path.isdir(d) else []
+    for n in names[:-RUNS_KEPT]:
+        os.unlink(os.path.join(d, n))
+
+
+def cmd_sync_run(store, args):
+    now = _now()
+    rec = {"ts": now.isoformat(), "trigger": args.trigger}
+    with open(store.path("sync-run.lock"), "w") as lk:
+        try:
+            fcntl.flock(lk, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            _log_line(store, dict(rec, action="busy"))
+            print("sync-run: another run is in progress")
+            return
+        st = load_state(store)
+        reason, skip = _why(store, st, store.day)
+        if reason is None and args.force and store.config().get("hub"):
+            reason, skip = "forced", ""
+        if reason is not None and not args.force and _backing_off(store, now):
+            reason, skip = None, f"backing off after a failed run (under {BACKOFF_MIN} min ago)"
+        if reason is None:
+            _log_line(store, dict(rec, action="skip", reason=skip))
+            print(f"sync-run: skipped ({skip})")
+            return
+        name, command = _sync_command(store)
+        if not command:
+            _log_line(store, dict(rec, action="fail", reason=reason, error="no sync command available"))
+            raise lore.LoreError("no sync command: no host adapter with a 'sync:' line is installed")
+        prompt = (f"Follow {lore.SKILL_DIR}/commands/sync.md exactly, now, without asking anything. "
+                  "Use the Tartib MCP tools. Reply with one line saying how many notes were pulled and pushed.")
+        fd, pf = tempfile.mkstemp(prefix="lore-sync-", suffix=".txt")
+        with os.fdopen(fd, "w") as f:
+            f.write(prompt)
+        env = dict(os.environ, LORE_HARVEST="1", LORE_PROMPT_FILE=pf)
+        t0 = time.monotonic()
+        out, rc = "", None
+        try:
+            r = subprocess.run(["sh", "-c", command], env=env, capture_output=True, text=True,
+                               timeout=SYNC_TIMEOUT, stdin=subprocess.DEVNULL)
+            out, rc = r.stdout + r.stderr, r.returncode
+        except subprocess.TimeoutExpired as err:
+            out = (err.stdout or b"").decode(errors="replace") if isinstance(err.stdout, bytes) else (err.stdout or "")
+            rc = "timeout"
+        finally:
+            os.unlink(pf)
+        secs = round(time.monotonic() - t0, 1)
+        after = load_state(store)
+        still, _ = _why(store, after, store.day)
+        ok = rc == 0 and still is None
+        os.makedirs(store.path("sync-runs"), exist_ok=True)
+        with open(store.path("sync-runs/" + now.strftime("%Y%m%dT%H%M%S") + ".log"), "w") as f:
+            f.write(out)
+        _keep_runs(store)
+        _log_line(store, dict(rec, action="run" if ok else "fail", reason=reason, host=name, rc=rc,
+                              secs=secs, tokens=_tokens(out), pushed=len(changed_files(store, st)),
+                              still_due=still is not None))
+        print(f"sync-run: {'synced' if ok else 'FAILED'} ({reason}) in {secs}s via {name}")
+        if not ok:
+            raise lore.LoreError(f"sync run failed (rc {rc}); see sync-runs/ in the store")
+
+
+def cmd_sync_log(store, args):
+    cutoff = (_now() - dt.timedelta(days=args.days)).isoformat()
+    rows = []
+    try:
+        with open(store.path(LOG_NAME)) as f:
+            rows = [r for r in (json.loads(l) for l in f if l.strip()) if r.get("ts", "") >= cutoff]
+    except FileNotFoundError:
+        pass
+    by = {}
+    for r in rows:
+        by[r["action"]] = by.get(r["action"], 0) + 1
+    runs = [r for r in rows if r["action"] in ("run", "fail")]
+    toks = sum(r.get("tokens") or 0 for r in runs)
+    print(f"last {args.days} day(s): {len(rows)} checks")
+    for a in ("skip", "run", "fail", "busy"):
+        print(f"  {a:<5} {by.get(a, 0)}")
+    print(f"  tokens in runs: {toks}" + (f" (about {toks // len(runs)} per run)" if runs else ""))
+    if rows:
+        skipped = by.get("skip", 0)
+        print(f"  {round(100 * skipped / len(rows))}% of checks needed no model call")
+    reasons = {}
+    for r in runs:
+        k = re.sub(r"\d{4}-\d\d-\d\d", "date", r.get("reason", ""))
+        reasons[k] = reasons.get(k, 0) + 1
+    for k, n in sorted(reasons.items(), key=lambda x: -x[1]):
+        print(f"  run reason: {k} x{n}")
+
+
+def _unit_dir():
+    return os.path.expanduser("~/.config/systemd/user")
+
+
+def cmd_sync_timer(store, args):
+    d = _unit_dir()
+    svc, tmr = os.path.join(d, UNIT + ".service"), os.path.join(d, UNIT + ".timer")
+    script = os.path.join(lore.SKILL_DIR, "scripts", "lore.py")
+    if args.action == "check":
+        print(f"{svc}: {'present' if os.path.exists(svc) else 'missing'}")
+        print(f"{tmr}: {'present' if os.path.exists(tmr) else 'missing'}")
+        return
+    sysctl = shutil.which("systemctl")
+    if args.action == "remove":
+        if sysctl:
+            subprocess.run([sysctl, "--user", "disable", "--now", UNIT + ".timer"], capture_output=True)
+        for f in (svc, tmr):
+            if os.path.exists(f):
+                os.unlink(f)
+        if sysctl:
+            subprocess.run([sysctl, "--user", "daemon-reload"], capture_output=True)
+        print("lore sync timer removed")
+        return
+    if not re.fullmatch(r"\d+(min|h)", args.every):
+        raise lore.LoreError("--every must look like 30min or 2h")
+    os.makedirs(d, exist_ok=True)
+    path = os.environ.get("PATH", "")
+    with open(svc, "w") as f:
+        f.write("[Unit]\nDescription=lore memory sync (gated; starts a model only when needed)\n\n"
+                f"[Service]\nType=oneshot\nEnvironment=\"PATH={path}\"\n"
+                f"ExecStart={sys.executable} {script} --store {store.root} sync-run\n")
+    with open(tmr, "w") as f:
+        f.write("[Unit]\nDescription=lore memory sync timer\n\n"
+                f"[Timer]\nOnBootSec=2min\nOnUnitActiveSec={args.every}\nPersistent=true\n\n"
+                "[Install]\nWantedBy=timers.target\n")
+    if sysctl:
+        subprocess.run([sysctl, "--user", "daemon-reload"], check=True)
+        subprocess.run([sysctl, "--user", "enable", "--now", UNIT + ".timer"], check=True)
+        print(f"lore sync timer installed: every {args.every}")
+    else:
+        print(f"units written to {d}; no systemctl here, so enable them yourself or use cron")

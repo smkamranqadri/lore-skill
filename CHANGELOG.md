@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.1.0 (2026-10-19)
+
+Hub sync no longer costs tokens in every agent session.
+
+- `lore.py sync-run`: a free gate (local changes, or no sync in a day) that starts one headless
+  agent (Codex `gpt-6-luna`, low effort) only when a sync is needed. One lock, one log line per
+  check in `sync-log.jsonl`, the last 20 runs' output in `sync-runs/`.
+- After a failed run the gate backs off for two hours (`--force` overrides), a run times out after
+  5 minutes, and `sync_cmd` in the config replaces the adapter's command for a machine whose CLI
+  needs its own invocation.
+- Every session end syncs: the capture hook chains `sync-run` after the harvest (free unless the
+  memory changed), and each log line records its trigger (`claude:SessionEnd`, `timer`). The
+  timer stays as a slow safety net.
+- `lore.py sync-log` summarises skips, runs, failures and tokens, to tune the interval.
+- `lore.py sync-timer install|remove|check`: a systemd user timer (default every 30 minutes).
+- The memory index no longer carries a "sync is due" line.
+
 ## 1.0.0 (2026-10-16)
 
 lore becomes one memory for Claude Code, Codex, Command Code and agy that learns on its own.

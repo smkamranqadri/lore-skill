@@ -137,7 +137,7 @@ explicit word), a stronger model reviews new rules daily, unused rules fade, and
 "drop that". Everything is logged in `~/.agents/memory/review.log`.
 
 **Can I use it on two machines?** Yes, with a notes hub. Today the hub is
-[Tartib](https://github.com/smkamranqadri/tartib), synced by your agent over its MCP; see
+[Tartib](https://github.com/smkamranqadri/tartib), synced by a scheduled headless agent over its MCP; see
 [Configuration](docs/configuration.md). Without a hub, lore works fully on one machine.
 
 **How do I undo it?** `python3 ~/.agents/skills/lore/scripts/lore.py setup --remove` takes lore

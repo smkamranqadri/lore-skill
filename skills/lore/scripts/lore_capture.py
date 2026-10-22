@@ -11,7 +11,7 @@ The host hook (lore-hook.sh) only queues its payload and starts `lore.py harvest
    with no model call.
 5. The cheapest available extractor turns the hits into JSON items. Global items become
    candidates; project facts are dropped and noted (they belong in that project's KIS).
-6. maintain, regenerate the index (which says when a sync is due), deliver it to every host.
+6. maintain, regenerate the index, deliver it to every host.
 """
 
 import datetime as dt

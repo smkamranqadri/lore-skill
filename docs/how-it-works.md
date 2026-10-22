@@ -53,9 +53,9 @@ copy that is refreshed whenever the index changes.
 
 ## Several machines
 
-With a hub configured, the index tells the agent when a sync is due (local changes, or a day
-since the last sync). The agent moves the memory files to and from the hub over its MCP, and lore
-merges them: entries are matched by id, the newest evidence wins, removals travel as tombstones,
+With a hub configured, a timer checks every 30 minutes whether a sync is due (local changes, or a
+day since the last sync). The check is free; only a due sync starts a headless agent, which moves
+the memory files to and from the hub over its MCP, and lore merges them: entries are matched by id, the newest evidence wins, removals travel as tombstones,
 and the result is the same whichever machine syncs first. See [Configuration](configuration.md).
 
 ## Files

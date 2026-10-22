@@ -26,6 +26,9 @@ sweep=""; [[ "$event" == SessionStart ]] && sweep="--sweep"
 # A new session leader, so a host tearing down its process group cannot take the harvester with
 # it. macOS has no setsid(1); its stock perl does the same.
 if command -v setsid >/dev/null 2>&1; then detach=(setsid); else detach=(perl -MPOSIX -e 'POSIX::setsid(); exec @ARGV'); fi
-LORE_HARVEST=1 nohup "${detach[@]}" python3 "$here/lore.py" --store "$store" harvest --wait $sweep \
-  >>"$store/harvest.log" 2>&1 </dev/null &
+# After the harvest, the gated hub sync: free unless the memory changed (or a day passed). The
+# trigger is logged, so sync-log shows which session end started which sync.
+LORE_HARVEST=1 nohup "${detach[@]}" sh -c \
+  'python3 "$1/lore.py" --store "$2" harvest --wait $4; python3 "$1/lore.py" --store "$2" sync-run --trigger "$3"' \
+  sh "$here" "$store" "$host:$event" $sweep >>"$store/harvest.log" 2>&1 </dev/null &
 exit 0

@@ -50,8 +50,9 @@ ok LB --today 2026-10-03 add --cat tools --text "Use pnpm, not npm, in node proj
 ok LB --today 2026-10-01 add --cat git --text "Never run git reset in the main checkout"   # a candidate here, confirmed on A
 for s in A B; do ok "L$s" --today 2026-10-03 maintain; done
 
-# 2. The index asks for a sync only when one is due.
-grep -q 'Memory sync is due' "$A/INDEX.md" || fail "a never-synced store does not ask for a sync"
+# 2. The index never asks an agent to sync (the timer does); sync-status still knows when one is due.
+grep -q 'Memory sync' "$A/INDEX.md" && fail "the index asks interactive agents to sync"
+LA sync-status | grep -q '"due": true' || fail "a never-synced store is not due"
 
 # 3. Merging each other's exports, in either order, gives the same memory (order independent).
 ok LA export --out "$tmp/exA"; ok LB export --out "$tmp/exB"
@@ -71,7 +72,7 @@ diff "$tmp/once" <(entries "$tmp/A1") >/dev/null || fail "a second merge of the 
 # 4. Through the hub: Mac syncs, Linux syncs, Mac syncs again; both end equal.
 sync_via "$A" 2026-10-04; sync_via "$B" 2026-10-04; sync_via "$A" 2026-10-04
 diff <(entries "$A") <(entries "$B") > "$tmp/d" || { cat "$tmp/d" > "$log"; fail "machines differ after syncing through the hub"; }
-grep -q 'Memory sync is due' "$A/INDEX.md" && fail "the index still asks for a sync right after one"
+python3 "$lore" --store "$A" --today 2026-10-04 sync-status | grep -q '"due": false' || fail "still due right after a sync"
 python3 "$lore" --store "$A" --today 2026-10-04 sync-status | grep -q '"push": \[\]' || fail "nothing should be left to push"
 
 # 5. A removal travels as a tombstone instead of coming back.
@@ -119,6 +120,6 @@ grep -q 'Mac edit' "$B/profile.hub.md" || fail "the hub's profile was not kept b
 
 # 9. Without a hub in the config, nothing asks for a sync.
 ok python3 "$lore" --store "$tmp/solo" --today 2026-10-11 init
-grep -q 'Memory sync is due' "$tmp/solo/INDEX.md" && fail "a store with no hub asks for a sync"
+python3 "$lore" --store "$tmp/solo" --today 2026-10-11 sync-status | grep -q '"due": false' || fail "a store with no hub is due for a sync"
 
 echo "test-sync: all checks passed"

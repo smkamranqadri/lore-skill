@@ -1,8 +1,8 @@
 ---
 name: lore
-description: "The user's memory across projects and hosts: how they want coding agents to work, hard rules, and gotchas per stack. Its index is already in your global instructions. Use this skill when the user says remember, always, never, or drop that; when they correct you in a way that should hold in other projects; when the index says a memory sync is due; when you need a category file the index points to; or when the user asks to sync memory, learn from taste, or see what lore knows. What is true in one project only belongs in that project's own memory (KIS), never here."
+description: "The user's memory across projects and hosts: how they want coding agents to work, hard rules, and gotchas per stack. Its index is already in your global instructions. Use this skill when the user says remember, always, never, or drop that; when they correct you in a way that should hold in other projects; when you need a category file the index points to; or when the user asks to sync memory, learn from taste, or see what lore knows. What is true in one project only belongs in that project's own memory (KIS), never here."
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # lore
@@ -38,7 +38,7 @@ credentials or personal data.
 
 ## Commands
 
-- `/lore:sync` (`commands/sync.md`): run it when the index says a sync is due.
+- `/lore:sync` (`commands/sync.md`): run it by hand; a timer normally does it (`lore.py sync-timer install`).
 - `/lore:learn-taste` (`commands/learn-taste.md`): harvest Command Code's taste files.
 - `/lore:retro` (`commands/retro.md`): record this session's lessons by hand, when the user asks.
 

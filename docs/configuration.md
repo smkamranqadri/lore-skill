@@ -14,6 +14,8 @@ lore works with no configuration. Everything below is optional.
 | `settle` | `600` | seconds a per-turn session must be quiet before it is read |
 | `hub` | (none) | `tartib` to sync several machines |
 | `hub_space` | (none) | the hub space that holds the memory notes |
+| `sync_models` | `codex` | which agents' adapters (`sync:` line) run the scheduled sync |
+| `sync_cmd` | (none) | the full command for the scheduled sync, replacing the adapter's `sync:` line |
 | `taste_roots` | `~/.commandcode/taste,~` | where `learn-taste` looks for taste files |
 
 ## Models
@@ -42,7 +44,14 @@ Without a hub, lore runs fully on one machine. To keep several machines in step:
    hub_space: agent-memory
    ```
 2. Connect the [Tartib](https://github.com/smkamranqadri/tartib) MCP in your agents.
-3. When the index says a sync is due, the agent follows `commands/sync.md` (or run `/lore:sync`).
+3. Install the timer: `python3 ~/.agents/skills/lore/scripts/lore.py sync-timer install` (Linux, systemd
+   user timer, every 30 minutes; `--every 2h` to change it). Each tick runs `sync-run`, which is free
+   unless a sync is needed (local changes, or none in a day). Only then does it start a headless
+   agent (Codex `gpt-6-luna`, low effort; the `sync:` line in the adapter) that follows
+   `commands/sync.md`. You can still run `/lore:sync` by hand.
+4. See what it costs: `lore.py sync-log --days 7` counts skips, runs, failures and tokens, from
+   `sync-log.jsonl` (one line per tick; the last 20 runs' output is in `sync-runs/`). If most ticks
+   skip, a shorter interval is cheap; if runs are many, lengthen it.
 
 Each memory file becomes one note titled `lore/<file>`. Other hubs need only the same four steps
 (list notes, read a note, write a note, create a note); contributions are welcome.

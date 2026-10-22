@@ -1,7 +1,7 @@
 # lore sync
 
-Bring this machine's memory and the hub's into step. Run it when the memory index says a sync is
-due, or when the user asks. It is self-contained: the scripts do the merging; you move files
+Bring this machine's memory and the hub's into step. The scheduled `lore.py sync-run` starts it headless when a sync is
+needed; run it by hand only when the user asks. It is self-contained: the scripts do the merging; you move files
 between the hub and two folders. Never edit memory files by hand.
 
 `L` below means `python3 ~/.agents/skills/lore/scripts/lore.py`.
