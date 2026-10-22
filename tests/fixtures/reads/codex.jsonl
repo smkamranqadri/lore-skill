@@ -1,0 +1,10 @@
+{"type":"session_meta","payload":{"cwd":"/home/fixture-user/app"}}
+{"type":"response_item","payload":{"type":"custom_tool_call","name":"exec","call_id":"c1","input":"const r = await tools.exec_command({cmd:\"cat /home/fixture-user/.agents/lore/how-i-work/verification.md && cat ~/.agents/lore/tools.md\",yield_time_ms:5000}); text(r.output)"}}
+{"type":"response_item","payload":{"type":"custom_tool_call","name":"exec","call_id":"c2","input":"const r = await tools.exec_command({cmd:\"cat $HOME/.agents/lore/how-i-work/verification.md\",yield_time_ms:5000}); text(r.output)"}}
+{"type":"response_item","payload":{"type":"custom_tool_call","name":"exec","call_id":"c3","input":"const r = await tools.exec_command({cmd:\"cat /home/fixture-user/notes/todo.md; cat /home/fixture-user/.agents/lore/.lore/state.md\"}); text(r.output)"}}
+{"type":"response_item","payload":{"type":"custom_tool_call","name":"exec","call_id":"c4","input":"const r = await tools.exec_command({cmd:\"python3 /home/fixture-user/.agents/lore/scripts/lore.py show /home/fixture-user/.agents/lore/ignored.md\"}); text(r.output)"}}
+{"type":"response_item","payload":{"type":"custom_tool_call","name":"exec","call_id":"c5","input":"const r = await tools.exec_command({cmd:\"cat > /home/fixture-user/.agents/lore/written.md <<'EOF'\nbody\nEOF\"}); text(r.output)"}}
+broken {"type":
+{"type":"response_item","payload":{"type":"custom_tool_call_output","call_id":"c1","output":"cat /home/fixture-user/.agents/lore/how-i-work/verification.md"}}
+{"type":"response_item","payload":{"type":"function_call","name":"js","call_id":"c6","arguments":"{\"code\":\"1+1\",\"title\":\"x\"}"}}
+{"type":"event_msg","payload":{"type":"user_message","message":"cat /home/fixture-user/.agents/lore/tools.md"}}

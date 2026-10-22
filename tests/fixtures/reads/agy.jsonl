@@ -1,0 +1,8 @@
+{"step_index":0,"source":"USER","type":"USER_INPUT","content":"<USER_REQUEST>read tools</USER_REQUEST>"}
+{"step_index":1,"source":"MODEL","type":"PLANNER_RESPONSE","tool_calls":[{"name":"view_file","args":{"AbsolutePath":"/home/fixture-user/.agents/lore/how-i-work/verification.md","toolAction":"\"Reading\""}}]}
+{"step_index":2,"source":"MODEL","type":"PLANNER_RESPONSE","tool_calls":[{"name":"view_file","args":{"AbsolutePath":"/home/fixture-user/.agents/lore/how-i-work/verification.md","StartLine":1,"EndLine":40}},{"name":"view_file","args":{"AbsolutePath":"~/.agents/lore/tools.md"}}]}
+{"step_index":3,"source":"MODEL","type":"PLANNER_RESPONSE","tool_calls":[{"name":"view_file","args":{"AbsolutePath":"/home/fixture-user/notes/todo.md"}},{"name":"view_file","args":{"AbsolutePath":"/home/fixture-user/.agents/lore/.lore/state.md"}}]}
+{"step_index":4,"source":"MODEL","type":"PLANNER_RESPONSE","tool_calls":[{"name":"write_to_file","args":{"TargetFile":"/home/fixture-user/.agents/lore/written.md","CodeContent":"x"}}]}
+{"step_index":5,"source":"MODEL","type":"PLANNER_RESPONSE","tool_calls":[{"name":"run_command","args":{"CommandLine":"cat $HOME/.agents/lore/gotchas/web.md","Cwd":"/home/fixture-user"}}]}
+{"step_index":6,"source":"MODEL","type":"PLANNER_RESPONSE","tool_calls":[{"name":"run_command","args":{"CommandLine":"python3 /home/fixture-user/.agents/lore/scripts/lore.py show /home/fixture-user/.agents/lore/ignored.md","Cwd":"/home/fixture-user"}}]}
+not json at all

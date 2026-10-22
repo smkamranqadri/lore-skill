@@ -1,0 +1,17 @@
+{"type":"user","message":{"role":"user","content":"read the rules"}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"reading"},{"type":"tool_use","id":"t1","name":"Read","input":{"file_path":"/home/fixture-user/.agents/lore/how-i-work/verification.md"}}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"t2","name":"Read","input":{"file_path":"/home/fixture-user/.agents/lore/how-i-work/verification.md","offset":5,"limit":20}}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"t3","name":"Read","input":{"file_path":"~/.agents/lore/tools.md"}}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"t4","name":"Bash","input":{"command":"cat $HOME/.agents/lore/gotchas/web.md","description":"read"}}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"t5","name":"Read","input":{"file_path":"/home/fixture-user/notes/todo.md"}}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"t6","name":"Read","input":{"file_path":"/home/fixture-user/.agents/lore/.lore/state.md"}}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"t7","name":"Write","input":{"file_path":"/home/fixture-user/.agents/lore/how-i-work/new.md","content":"x"}}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"t8","name":"Edit","input":{"file_path":"/home/fixture-user/.agents/lore/how-i-work/edited.md","old_string":"a","new_string":"b"}}]}}
+this line is not json {{{
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"t9","name":"Bash","input":{"command":"python3 /home/fixture-user/.agents/lore/scripts/lore.py show /home/fixture-user/.agents/lore/how-i-work/ignored.md"}}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"t10","name":"Bash","input":{"command":"sed -n 1,20p /home/fixture-user/.agents/lore/how-i-work/workflow.md && grep -n foo /home/fixture-user/.agents/lore/tools.md"}}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"t11","name":"Bash","input":{"command":"cat > /home/fixture-user/.agents/lore/how-i-work/written.md <<'EOF'\nbody\nEOF"}}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"t12","name":"Read","input":{"file_path":"/home/fixture-user/.agents/lore/how-i-work/../tools.md"}}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"t13","name":"Read","input":{"file_path":"/home/fixture-user/.agents/lore/index.json"}}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"t14","name":"Grep","input":{"pattern":"web","path":"/home/fixture-user/.agents/lore/gotchas/web.md"}}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"t15","name":"Bash","input":{"command":"head -n 3 /home/fixture-user/.agents/lore/how-i-work/workflow.md /home/fixture-user/.agents/lore/how-i-work/workflow.md"}}]}}
