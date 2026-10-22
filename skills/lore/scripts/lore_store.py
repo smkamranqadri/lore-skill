@@ -276,6 +276,44 @@ def render_rules(title, rules):
     return head + "".join(f"- {r}\n" for r in rules)
 
 
+def _is_rule_line(line, rule):
+    return line.startswith("- ") and " ".join(line[2:].split()) == rule
+
+
+def add_rule_line(text, rule, title=None):
+    """A rule file's text with `- rule` appended; every other line is kept as it was. A missing
+    or empty file starts with `title`."""
+    if not (text or "").strip():
+        return render_rules(title, [rule])
+    return text + ("" if text.endswith("\n") else "\n") + f"- {rule}\n"
+
+
+def remove_rule_line(text, rule):
+    """A rule file's text without the first line holding `rule`. Raises when there is none."""
+    lines = (text or "").splitlines(keepends=True)
+    for i, line in enumerate(lines):
+        if _is_rule_line(line.rstrip("\n"), rule):
+            return "".join(lines[:i] + lines[i + 1:])
+    raise lore.LoreError("no such rule line")
+
+
+def replace_rule_line(text, old, new):
+    """A rule file's text with the first line holding `old` now holding `new`, in place."""
+    lines = (text or "").splitlines(keepends=True)
+    for i, line in enumerate(lines):
+        if _is_rule_line(line.rstrip("\n"), old):
+            lines[i] = f"- {new}\n"
+            return "".join(lines)
+    raise lore.LoreError("no such rule line")
+
+
+def merge_links(o, a, b):
+    """A topic's links, three-way like rule lines: either side's link is kept, unless one side
+    removed it (an unlink on one machine removes it on both)."""
+    so, sa, sb = (set(x or []) for x in (o, a, b))
+    return sorted(x for x in sa | sb if not (x in so and not (x in sa and x in sb)))
+
+
 def meta_rel(rel):
     return ".lore/meta/" + rel[:-3] + ".json"
 
@@ -310,6 +348,35 @@ def new_id(text, taken):
     return eid
 
 
+def match_rules(meta, rules, day):
+    """Match one file's rule texts to its sidecar entries, in place on `meta`: a line without an
+    entry is adopted (a hand edit, flagged), an entry whose line is gone is dropped. Returns
+    (adopted [(id, text)], dropped [id], duplicates [text]); nothing is written."""
+    entries = meta.setdefault("rules", {})
+    by_text = {e.get("text"): eid for eid, e in entries.items() if isinstance(e, dict)}
+    keep, seen, adopted, dups = {}, set(), [], []
+    for text in rules:
+        if text in seen:   # the same rule twice in one file: one entry, reported
+            if text not in dups:
+                dups.append(text)
+            continue
+        seen.add(text)
+        if text in by_text:
+            keep[by_text[text]] = entries[by_text[text]]
+            continue
+        eid = new_id(text, set(entries) | set(keep))
+        keep[eid] = {"text": text, "created": day, "explicit": True, "count": 1, "dates": [day],
+                     "confidence": lore.NEW_EXPLICIT, "sessions": [], "updated": now_iso(),
+                     "hand_edit": day}
+        by_text[text] = eid
+        adopted.append((eid, text))
+    dropped = [eid for eid in entries if eid not in keep]
+    meta["rules"] = keep
+    meta.setdefault("reads", {})
+    meta.setdefault("last_read", {})
+    return adopted, dropped, dups
+
+
 def reconcile(store):
     """Match every rule line to its sidecar entry by text. A line without one is adopted (a hand
     edit, flagged); an entry whose line is gone is dropped; a sidecar whose file is gone too.
@@ -321,28 +388,10 @@ def reconcile(store):
         title, rules, bad = parse_rules(store.read(rel))
         rep["bad"] += [(rel, n) for n, _ in bad]
         meta = load_meta(store, rel)
-        entries = meta.setdefault("rules", {})
-        by_text = {e.get("text"): eid for eid, e in entries.items() if isinstance(e, dict)}
-        keep, seen = {}, set()
-        for text in rules:
-            if text in seen:   # the same rule twice in one file: one entry, reported
-                if (rel, text) not in rep["duplicates"]:
-                    rep["duplicates"].append((rel, text))
-                continue
-            seen.add(text)
-            if text in by_text:
-                keep[by_text[text]] = entries[by_text[text]]
-                continue
-            eid = new_id(text, set(entries) | set(keep))
-            keep[eid] = {"text": text, "created": day, "explicit": True, "count": 1, "dates": [day],
-                         "confidence": lore.NEW_EXPLICIT, "sessions": [], "updated": now_iso(),
-                         "hand_edit": day}
-            by_text[text] = eid
-            rep["adopted"].append((rel, eid, text))
-        rep["dropped"] += [(rel, eid) for eid in entries if eid not in keep]
-        meta["rules"] = keep
-        meta.setdefault("reads", {})
-        meta.setdefault("last_read", {})
+        adopted, dropped, dups = match_rules(meta, rules, day)
+        rep["duplicates"] += [(rel, text) for text in dups]
+        rep["adopted"] += [(rel, eid, text) for eid, text in adopted]
+        rep["dropped"] += [(rel, eid) for eid in dropped]
         if save_meta(store, rel, meta):
             rep["changed"].append(meta_rel(rel))
     wanted = {meta_rel(r) for r in files}
@@ -634,11 +683,14 @@ def merge_rule(o, a, b):
 
 def merge_meta(o, a, b):
     """Sidecars per rule and per field. Reads are per machine: a union, the maximum per machine.
-    A rule removed on either side stays removed (its line is gone from the rule file too)."""
+    A rule removed on either side stays removed (its line is gone from the rule file too); links
+    merge the same way."""
     out = {}
     newer_a = _newer_a(a, b, "read_when_updated")
-    for k in sorted((set(o) | set(a) | set(b)) - {"rules", "reads", "last_read"}):
+    for k in sorted((set(o) | set(a) | set(b)) - {"rules", "reads", "last_read", "links"}):
         _set(out, k, _pick(o, a, b, k, newer_a))
+    if any("links" in x for x in (o, a, b)):
+        out["links"] = merge_links(o.get("links"), a.get("links"), b.get("links"))
     for k in ("reads", "last_read"):
         m = dict(a.get(k) or {})
         for mach, v in (b.get(k) or {}).items():
