@@ -28,7 +28,12 @@
   `lore-2.0` (local, not pushed); `v1.1.0` tagged locally at `e52b56e`.
 - P1 done 2026-10-23 and installed live as 2.0.0-p1 (`lore-2.0` at `75cbc2d`; proof in the plan's
   Status). 2.0 store `~/.agents/lore`, private hub `smkamranqadri/lore-memory`, shim
-  `~/.local/bin/lore`. 1.x keeps running beside it. Next: P2 (Loremaster).
+  `~/.local/bin/lore`. 1.x keeps running beside it.
+- P2 done 2026-10-23 and installed live as 2.0.0-p2 (`lore-2.0` at `1abe256`; proof in the plan's
+  Status). `lore remember` and the Loremaster filing step exist; agents do not call them until P5
+  delivers the 2.0 index. Open: role commands resolve to the mise wrappers
+  (`~/.local/bin/claude`, `codex`), which hung without a TTY in soak 1; set `loremaster:` in the
+  config to the real binary before relying on it outside a session. Next: P3 (Canon).
 - Soak 2 issue (1.x, before P1): 23:29 run on 2026-10-22 logged `fail` because the headless Codex
   had no Tartib tools; Tartib MCP and the Codex token both answer 200 at 01:2x, so it was transient.
   Backoff to ~01:29, 7 files pending push; next session end retries.
