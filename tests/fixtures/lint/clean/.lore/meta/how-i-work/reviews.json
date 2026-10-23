@@ -1,0 +1,46 @@
+{
+ "last_read": {},
+ "links": [
+  "gotchas/git.md"
+ ],
+ "read_when": "planning or reviewing a change",
+ "reads": {},
+ "rules": {
+  "5edeab08": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Record the exact command that proves a change works.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "95a176d0": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Keep one implementer per task and review the diff afterwards.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "cb722384": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Ask a second model to review every plan before building.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  }
+ }
+}

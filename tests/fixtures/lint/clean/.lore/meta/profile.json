@@ -1,0 +1,32 @@
+{
+ "last_read": {},
+ "read_when": "you need to know who the user is",
+ "read_when_updated": "2026-09-01T09:00:00+00:00",
+ "reads": {},
+ "rules": {
+  "b651ab7b": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "The user prefers short direct answers without preamble.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "ee549b0b": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "The user builds small developer tools in Python and TypeScript.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  }
+ }
+}

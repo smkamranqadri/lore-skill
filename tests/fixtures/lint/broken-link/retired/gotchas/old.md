@@ -1,0 +1,1 @@
+- A retired rule that nothing should link to.

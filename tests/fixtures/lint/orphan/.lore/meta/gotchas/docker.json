@@ -1,0 +1,30 @@
+{
+ "last_read": {},
+ "reads": {},
+ "rules": {
+  "b66d7dcb": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Pin the base image tag instead of using latest.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "e70221d2": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Run containers as a non-root user.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  }
+ }
+}

@@ -1,0 +1,31 @@
+{
+ "last_read": {},
+ "read_when": "writing a shell script",
+ "reads": {},
+ "rules": {
+  "4af7cf61": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Quote every variable expansion in a script.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "53ae883f": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Send long output to a log file and read it whole.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  }
+ }
+}

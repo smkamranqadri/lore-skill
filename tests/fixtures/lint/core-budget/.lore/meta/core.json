@@ -1,0 +1,102 @@
+{
+ "last_read": {},
+ "reads": {},
+ "rules": {
+  "309a64ca": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Package the exporter with pinned versions to keep reinstalls reproducible.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "49f08e4f": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Deploy only after the staging smoke check passes and the rollback command is written down.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "57101a12": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Refactor in small commits so a reviewer can follow each renamed function.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "64ff4c18": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Benchmark with the real dataset because synthetic inputs hide the slow paths.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "8d599e93": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Profile the scheduler before rewriting it, since guesses about hot loops are usually wrong.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "afeead87": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Compile the parser from a clean checkout before trusting any green test run.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "b5c49673": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Migrate the database on a copy first, then compare row counts by hand.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "c7abd5da": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Document every environment variable next to the code that reads it.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  }
+ }
+}

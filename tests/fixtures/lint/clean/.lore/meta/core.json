@@ -1,0 +1,30 @@
+{
+ "last_read": {},
+ "reads": {},
+ "rules": {
+  "5b39d894": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Run the real command before claiming a task is done.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "5b77bcc2": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Never print a secret in chat or in a log.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  }
+ }
+}

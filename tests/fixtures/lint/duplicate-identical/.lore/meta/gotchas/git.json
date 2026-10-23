@@ -1,0 +1,59 @@
+{
+ "last_read": {},
+ "links": [
+  "how-i-work/reviews.md",
+  "gotchas/docker.md"
+ ],
+ "read_when": "a git command misbehaves",
+ "reads": {},
+ "rules": {
+  "328235ce": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Quote a glob in zsh so the shell does not expand it.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "45cf8da6": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Read the whole diff before committing it.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "952d11e1": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Never force-push a shared branch.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "b66d7dcb": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "pin the base image tag, instead of using LATEST",
+   "updated": "2026-09-01T09:00:00+00:00"
+  }
+ }
+}
