@@ -28,12 +28,13 @@ skills/lore/           the lore package, and what ships
   scripts/             lore.py (store, index, delivery, import), lore_capture.py (hooks,
                        harvest, review, taste), lore_sync.py (hub sync), lore-hook.sh;
                        2.0, beside 1.x until P5: lore_store.py (git store, sidecars, index,
-                       headless git, merge drivers), lore_hub.py (hub, session-end step, shim)
+                       headless git, merge drivers), lore_hub.py (hub, session-end step, shim);
+                       P3: lore_lint.py (lint gates), lore_canon.py (Canon runs, lint/canon commands)
 scripts/               install-skill.sh, run from a source clone only
 docs/                  the pages the README links to, and its SVG images (never installed)
 .github/workflows/     CI: tests/run.sh on Linux
 tests/                 one suite per area (store, delivery, capture, review, sync, import, taste,
-                       setup, review fixes, install; 2.0: store2, hub, remember, inbox), never installed
+                       setup, review fixes, install; 2.0: store2, hub, remember, inbox, lint, canon), never installed
 bootstrap.sh           one-command install, check, update
 kis/                   this repo's own project memory (read kis/state first)
 ```
@@ -50,7 +51,7 @@ and agy. If a file does not belong in someone's home, it does not belong in
   restate rules on purpose. When a command and `SKILL.md` disagree, `SKILL.md` is right.
 - `metadata.version` in `SKILL.md` is bumped on every change that ships.
 - Tests never call a real model CLI: they set `LORE_EXTRACT_CMD` and `LORE_REVIEW_CMD` to fakes
-  (2.0 adds `LORE_LOREMASTER_CMD`, a fake Loremaster that replies with JSON operations, and `LORE_CANON_CMD`; `LORE_MODEL_TIMEOUT` shortens the role-command timeout for a hanging fake). Nor the network or GitHub: any hub is a
+  (2.0 adds `LORE_LOREMASTER_CMD`, a fake Loremaster that replies with JSON operations, and `LORE_CANON_CMD`, a fake Canon that replies the same way and records each call, so a quiet store is proved to make none; `LORE_MODEL_TIMEOUT` shortens the role-command timeout for a hanging fake). Nor the network or GitHub: any hub is a
   local bare repo (`git init --bare`), GitHub URLs are rewritten to local paths with `insteadOf`,
   `gh` is a fake through `LORE_GH_CMD`, and git runs with `GIT_CONFIG_GLOBAL` set to `/dev/null`
   (or to a deliberately hostile file). The 2.0 store is `LORE_STORE2` in a temporary HOME.

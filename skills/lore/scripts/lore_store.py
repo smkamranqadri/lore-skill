@@ -47,6 +47,7 @@ GITATTRIBUTES = """# lore's merge policy; lore passes the drivers on every git c
 *.md merge=lore-rules
 .lore/meta/**/*.json merge=lore-meta
 .lore/layout.json merge=lore-layout
+retired/**/*.json merge=lore-retired
 """
 GITIGNORE = "# built by lore on every machine, never merged\n/INDEX.md\n"
 HEADLESS = ["-c", "commit.gpgsign=false", "-c", "tag.gpgsign=false", "-c", "push.gpgsign=false",
@@ -97,7 +98,7 @@ def git_timeout():
 def _drivers():
     me, py = shlex.quote(os.path.abspath(__file__)), shlex.quote(sys.executable)
     out = []
-    for kind in ("rules", "meta", "layout"):
+    for kind in ("rules", "meta", "layout", "retired"):
         out += ["-c", f"merge.lore-{kind}.name=lore {kind}",
                 "-c", f"merge.lore-{kind}.driver={py} {me} merge-driver {kind} %O %A %B %P"]
     return out
@@ -110,13 +111,16 @@ def clean_err(text):
     return lines[-1] if lines else "no output"
 
 
-def git(root, *args, check=True, timeout=None, stdin=None, raw=False):
+def git(root, *args, check=True, timeout=None, stdin=None, raw=False, index=None):
     """Run git headless: no terminal prompt, no askpass, ssh in batch mode, no signing, no hooks,
     no editor, no controlling terminal, and a timeout that kills the whole process group.
-    `stdin` is fed to git; with `raw` the output is bytes."""
+    `stdin` is fed to git; with `raw` the output is bytes; `index` is an index file used instead
+    of .git/index."""
     env = dict(os.environ, GIT_TERMINAL_PROMPT="0", GIT_SSH_COMMAND="ssh -o BatchMode=yes",
                GIT_EDITOR="true", GIT_SEQUENCE_EDITOR="true", GIT_ASKPASS="", SSH_ASKPASS="",
                GCM_INTERACTIVE="never")
+    if index:
+        env["GIT_INDEX_FILE"] = index
     t = timeout or git_timeout()
     p = subprocess.Popen(["git", "-C", root] + HEADLESS + _drivers() + list(args), env=env,
                          stdin=subprocess.DEVNULL if stdin is None else subprocess.PIPE,
@@ -144,6 +148,7 @@ class Store2:
     def __init__(self, root, day=None):
         self.root = root
         self.day = day or dt.date.today()
+        self.staging = None   # an index file lore's reads of staged blobs use instead of .git/index
 
     def path(self, rel):
         p = os.path.normpath(os.path.join(self.root, rel))
@@ -521,7 +526,8 @@ def blobs(store, spec_paths):
     """{spec: bytes or None} for blob specs like `:path` or `:2:path`, read with one git call."""
     if not spec_paths:
         return {}
-    _, out, _ = store.git("cat-file", "--batch", stdin="".join(p + "\n" for p in spec_paths).encode(), raw=True)
+    _, out, _ = store.git("cat-file", "--batch", stdin="".join(p + "\n" for p in spec_paths).encode(), raw=True,
+                          index=store.staging)
     res, i = {}, 0
     for spec in spec_paths:
         nl = out.index(b"\n", i)
@@ -551,6 +557,15 @@ def refused_files(store, changes):
     return out
 
 
+def refusal(bad):
+    """The error for files refused_files found, by reason; the content is never shown."""
+    why = {}
+    for path, reason in bad:
+        why.setdefault(reason, []).append(path)
+    return ("refused to commit: " + "; ".join(f"{r} in {', '.join(ps)}" for r, ps in why.items())
+            + " (not shown); remove it and commit again")
+
+
 def describe(changes):
     """A commit subject from staged (status, path) pairs: what changed, rule files first."""
     verbs = {"A": "add", "M": "edit", "D": "remove"}
@@ -575,11 +590,7 @@ def commit(store, subject=None):
     bad = refused_files(store, changes)
     if bad:
         store.git("reset", "-q")
-        why = {}
-        for path, reason in bad:
-            why.setdefault(reason, []).append(path)
-        raise lore.LoreError("refused to commit: " + "; ".join(f"{r} in {', '.join(ps)}" for r, ps in why.items())
-                             + " (not shown); remove it and commit again")
+        raise lore.LoreError(refusal(bad))
     if callable(subject):
         subject = subject(changes)
     subject = subject or describe(changes)
@@ -606,10 +617,21 @@ def recover(store, killed=False):
         store.git("rebase", "--abort", check=False, timeout=max(git_timeout(), RECOVER_TIMEOUT))
 
 
+def upgrade(store):
+    """A store made before a line of GITATTRIBUTES existed gets that line, committed with the next
+    commit like any tidy change; lines the owner added stay as they are."""
+    lines = (store.read(".gitattributes") or "").splitlines()
+    missing = [l for l in GITATTRIBUTES.splitlines() if l and not l.startswith("#") and l not in lines]
+    if missing:
+        store.write(".gitattributes", "".join(l + "\n" for l in lines + missing))
+
+
 def tidy(store):
-    """Reconcile the sidecars and rebuild the index; the step before every commit. An index over
-    the budget is reported, not written, and does not stop the commit."""
+    """Bring .gitattributes up to date, reconcile the sidecars and rebuild the index; the step
+    before every commit. An index over the budget is reported, not written, and does not stop the
+    commit."""
     recover(store)
+    upgrade(store)
     rep = reconcile(store)
     try:
         rep["index"] = write_index(store)
@@ -709,11 +731,37 @@ def merge_meta(o, a, b):
     return out
 
 
+def merge_retired(o, a, b):
+    """Archived rules (retired/<path>.json, each entry with its retirement's evidence): a union by
+    id that never loses an entry. An entry one side changed and the other left as it was takes the
+    change; two different entries under one id are both kept, the second under a new id, so the
+    same result comes whichever side is which."""
+    ro, ra, rb = (x.get("rules") if isinstance(x.get("rules"), dict) else {} for x in (o, a, b))
+    rules, extra = {}, []
+    for eid in sorted(set(ro) | set(ra) | set(rb)):
+        distinct = []
+        for v in (ra.get(eid), rb.get(eid)):
+            if v is not None and v not in distinct:
+                distinct.append(v)
+        if len(distinct) == 2 and ro.get(eid) in distinct:
+            distinct.remove(ro[eid])
+        distinct = sorted(distinct or [ro[eid]], key=lambda v: json.dumps(v, sort_keys=True))
+        rules[eid] = distinct[0]
+        extra += distinct[1:]
+    for v in extra:
+        rules[new_id(str(v.get("text", "")) if isinstance(v, dict) else "", set(rules))] = v
+    out = dict(o, **b)
+    out.update(a, rules=rules)
+    return out
+
+
 def merge_kind(path):
     if path == ".lore/layout.json":
         return "layout"
     if path.startswith(".lore/meta/") and path.endswith(".json"):
         return "meta"
+    if path.startswith("retired/") and path.endswith(".json"):
+        return "retired"
     return "rules" if path.endswith(".md") else None
 
 
@@ -747,9 +795,10 @@ def resolve_conflicts(store):
             result = merge_rule_text(to, ta, tb)
             _, rules, other = parse_rules(result)
             gone = not rules and not other and (a is None or b is None)
-        elif kind == "meta":
+        elif kind in ("meta", "retired"):
+            merge = merge_meta if kind == "meta" else merge_retired
             try:
-                result = dump_meta(merge_meta(*(json.loads(t) if t.strip() else {} for t in (to, ta, tb))))
+                result = dump_meta(merge(*(json_side(t) for t in (to, ta, tb))))
             except ValueError:
                 raise GitError(f"a conflict lore cannot settle in {path} (not valid JSON)")
             gone = False
@@ -768,6 +817,14 @@ def resolve_conflicts(store):
     return True
 
 
+def json_side(text):
+    """One side of a JSON merge: {} when the side is missing, ValueError when it is not an object."""
+    data = json.loads(text) if text.strip() else {}
+    if not isinstance(data, dict):
+        raise ValueError("not a JSON object")
+    return data
+
+
 def merge_driver(kind, o, a, b, path):
     def rd(p):
         try:
@@ -778,12 +835,12 @@ def merge_driver(kind, o, a, b, path):
     to, ta, tb = rd(o), rd(a), rd(b)
     if kind == "rules":
         result = merge_rule_text(to, ta, tb)
-    elif kind == "meta":
+    elif kind in ("meta", "retired"):
         try:
-            jo, ja, jb = (json.loads(t) if t.strip() else {} for t in (to, ta, tb))
+            jo, ja, jb = (json_side(t) for t in (to, ta, tb))
         except ValueError:
             return 1
-        result = dump_meta(merge_meta(jo, ja, jb))
+        result = dump_meta((merge_meta if kind == "meta" else merge_retired)(jo, ja, jb))
     elif kind == "layout":
         result = ta
         if ta != tb:   # the hub's layout wins; the local one waits as a proposal for the owner
@@ -798,5 +855,5 @@ def merge_driver(kind, o, a, b, path):
 if __name__ == "__main__":
     if len(sys.argv) == 7 and sys.argv[1] == "merge-driver":
         sys.exit(merge_driver(*sys.argv[2:]))
-    print("usage: lore_store.py merge-driver rules|meta|layout %O %A %B %P", file=sys.stderr)
+    print("usage: lore_store.py merge-driver rules|meta|layout|retired %O %A %B %P", file=sys.stderr)
     sys.exit(2)

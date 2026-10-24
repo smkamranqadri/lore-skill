@@ -209,6 +209,13 @@ def model_chain(store, hosts, field, config_key, default, override_env):
     return chain
 
 
+def resolved(command):
+    """The command with a mise shim or wrapper replaced by the install it runs (lore_hub's
+    resolver, shared with the 2.0 roles); LoreError when it is a wrapper lore cannot resolve."""
+    import lore_hub   # here, not at the top: lore_hub imports lore_sync, which the 1.x paths load first
+    return lore_hub.resolved_command(command)
+
+
 def run_chain(chain, prompt, what):
     """Run the first command in the chain that returns a JSON array; return its items."""
     if not chain:
@@ -221,6 +228,7 @@ def run_chain(chain, prompt, what):
     try:
         for name, command in chain:
             try:
+                command = resolved(command)
                 r = subprocess.run(["sh", "-c", command], env=env, capture_output=True, text=True,
                                    timeout=EXTRACT_TIMEOUT, stdin=subprocess.DEVNULL)
                 if r.returncode != 0:
@@ -228,7 +236,7 @@ def run_chain(chain, prompt, what):
                 items = parse_items(r.stdout)
                 log(f"{what}: {name} returned {len(items)} item(s)")
                 return items
-            except (ExtractError, subprocess.TimeoutExpired) as err:
+            except (ExtractError, lore.LoreError, subprocess.TimeoutExpired) as err:
                 errors.append(f"{name}: {err}")
         raise ExtractError("; ".join(errors))
     finally:

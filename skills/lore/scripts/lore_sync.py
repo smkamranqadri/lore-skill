@@ -380,6 +380,12 @@ def cmd_sync_run(store, args):
         if not command:
             _log_line(store, dict(rec, action="fail", reason=reason, error="no sync command available"))
             raise lore.LoreError("no sync command: no host adapter with a 'sync:' line is installed")
+        try:
+            import lore_hub   # here, not at the top: lore_hub imports this module
+            command = lore_hub.resolved_command(command)   # a mise wrapper runs its install, or is refused
+        except lore.LoreError as err:
+            _log_line(store, dict(rec, action="fail", reason=reason, host=name, error=str(err)))
+            raise
         prompt = (f"Follow {lore.SKILL_DIR}/commands/sync.md exactly, now, without asking anything. "
                   "Use the Tartib MCP tools. Reply with one line saying how many notes were pulled and pushed.")
         fd, pf = tempfile.mkstemp(prefix="lore-sync-", suffix=".txt")

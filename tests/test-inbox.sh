@@ -10,6 +10,14 @@ trap '[[ -n "${KEEP:-}" ]] || rm -rf "$tmp"' EXIT
 export HOME="$tmp/home"; mkdir -p "$HOME"
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 unset LORE_STORE LORE_STORE2 LORE_GH_CMD LORE_GIT_TIMEOUT LORE_LOREMASTER_CMD 2>/dev/null || true
+# Canon (P3) runs in `check --live` and at session end: a fake that fixes nothing keeps every real
+# agent CLI out of reach (XDG_DATA_HOME could point lore at the real mise installs).
+unset XDG_DATA_HOME MISE_DATA_DIR 2>/dev/null || true
+cat > "$tmp/canon-none.sh" <<'FAKE'
+#!/bin/sh
+echo '{"ops": [], "answer": "nothing to fix"}'
+FAKE
+chmod +x "$tmp/canon-none.sh"; export LORE_CANON_CMD="$tmp/canon-none.sh"
 log="$tmp/log"; S="$tmp/store"; HUB="$tmp/hub.git"
 fail() { echo "FAIL: $*" >&2; echo "--- last output ---" >&2; cat "$log" >&2 || true; exit 1; }
 ok()   { "$@" >"$log" 2>&1 || fail "$* exited non-zero"; }

@@ -30,6 +30,9 @@ FAILS_REPORTED = 3
 GH_TIMEOUT = 60
 REMEMBER_MAX = 1000
 LOREMASTER_MODELS_DEFAULT = "claude,codex"
+CANON_MODELS_DEFAULT = "claude,codex"
+JSON_ROLES = ("loremaster", "canon")   # roles that answer with the Loremaster's JSON operations
+MISE_SKIP = {"exec", "command", "env", "nice", "nohup", "builtin"}   # words that run the next one
 CHECK_PROMPT = 'Reply with only this JSON and nothing else: {"ops": [], "answer": "ok"}'
 SHIM_MARK = "# written by lore setup; `lore.py setup --remove` deletes it"
 GITHUB_RE = re.compile(r"^(?:https://(?:[^@/]+@)?github\.com/|git@github\.com:|ssh://git@github\.com/)"
@@ -82,14 +85,21 @@ def _has_ref(store, ref):
 
 def sync(store):
     """Bring the hub's commits in and send ours out. Raises LoreError; leaves no rebase behind."""
-    lore_store.recover(store)
-    store.git("fetch", "-q", REMOTE)
-    remote = f"refs/remotes/{REMOTE}/{lore_store.BRANCH}"
-    if _has_ref(store, remote):
-        rebase(store, remote)
-        lore_store.tidy(store)
-        lore_store.commit(store, "tidy after merging the hub")
+    integrate(store, REMOTE, "tidy after merging the hub")
     store.git("push", "-q", REMOTE, f"HEAD:refs/heads/{lore_store.BRANCH}")
+
+
+def integrate(store, remote, subject):
+    """Fetch `remote` and replay the local commits onto its branch with lore's merge policy, then
+    tidy and commit what tidying changed (as `subject`). The hub's sync, and Canon's landing from
+    its private checkout. Raises LoreError; leaves no rebase behind."""
+    lore_store.recover(store)
+    store.git("fetch", "-q", remote)
+    ref = f"refs/remotes/{remote}/{lore_store.BRANCH}"
+    if _has_ref(store, ref):
+        rebase(store, ref)
+        lore_store.tidy(store)
+        lore_store.commit(store, subject)
 
 
 REBASE_STEPS = 100
@@ -334,6 +344,20 @@ def store_run(store, trigger, force=False):
         log("store-run: " + push_step(store, force))
         if file_step(store, trigger, force):
             log("store-run: " + push_step(store, force))
+        if canon_step(store, trigger, force):
+            log("store-run: " + push_step(store, force))
+
+
+def canon_step(store, trigger, force=False):
+    """Session end, after the filing: Canon when lint's gates say it is due (lore_canon.step).
+    Returns True when it made a commit. Never raises."""
+    try:
+        sys.modules.setdefault("lore", lore)
+        import lore_canon
+        return lore_canon.step(store, trigger, force)
+    except Exception as err:   # the step must never break the session-end run
+        log(f"store-run: canon FAILED: {type(err).__name__}: {lore.redact(str(err))[:300]} ({trigger})")
+        return False
 
 
 # ---- commands ---------------------------------------------------------------------------------
@@ -522,14 +546,136 @@ def first_word(command):
 
 
 def absolute_command(command):
-    """The command with its binary as an absolute path, so a bare PATH under a timer finds it."""
+    """The command with its binary as an absolute path, so a bare PATH under a timer finds it, and
+    a mise shim or wrapper replaced by the install it runs (soak 1: the wrapper hangs without a TTY)."""
     word, rest = first_word(command)
     if not word:
         raise lore.LoreError("the role command is empty")
+    return shlex.quote(resolve_binary(word)) + rest
+
+
+def resolve_binary(word):
+    """The executable a command's first word runs. Raises LoreError when it is missing, or when it
+    is a mise wrapper whose install cannot be found."""
     exe = word if os.path.isabs(word) else shutil.which(word)
     if not exe or not os.access(exe, os.X_OK):
         raise lore.LoreError(f"the role command's binary was not found: {word}")
-    return shlex.quote(exe) + rest
+    wrapped = mise_wrapped(exe)
+    if wrapped is None:
+        return exe
+    real = mise_binary(*wrapped)
+    if not real:
+        raise lore.LoreError(f"{exe} is a mise wrapper lore cannot resolve (it hangs without a terminal); "
+                             f"name the real binary in the role's config line")
+    return real
+
+
+def mise_wrapped(exe):
+    """(tool, command) when `exe` runs its tool through mise: a mise shim (a link to the mise
+    binary) or a script with a command `mise [flags] x|exec <tool> -- <command>`, read as shell
+    words (quotes, an absolute or quoted path to mise, after exec, env or VAR=value). None for
+    anything else; a line naming mise that cannot be read gives a tool lore cannot resolve."""
+    if os.path.basename(os.path.realpath(exe)) == "mise" and os.path.basename(exe) != "mise":
+        return os.path.basename(exe), os.path.basename(exe)
+    try:
+        with open(exe, "rb") as f:
+            head = f.read(65536)
+    except OSError:
+        return None
+    if not head.startswith(b"#!") or b"\0" in head:
+        return None
+    for line in head.decode("utf-8", errors="replace").splitlines()[1:]:
+        if "mise" not in line:
+            continue
+        try:
+            lexer = shlex.shlex(line, posix=True, punctuation_chars=";&|()")
+            lexer.whitespace_split = True
+            words = list(lexer)
+        except ValueError:
+            return "", ""
+        found = mise_call(words)
+        if found is not None:
+            return found
+    return None
+
+
+def mise_call(words):
+    """(tool, command) of the first simple command in `words` that runs mise x|exec, None when
+    none does, ("", "") when one does but names no tool."""
+    start = True
+    for i, w in enumerate(words):
+        if w and set(w) <= set(";&|()"):
+            start = True
+            continue
+        if not start:
+            continue
+        if w in MISE_SKIP or re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", w) or (w.startswith("-") and i and words[i - 1] in MISE_SKIP):
+            continue
+        start = False
+        if os.path.basename(w) != "mise":
+            continue
+        rest = words[i + 1:]
+        while rest and rest[0].startswith("-"):
+            rest = rest[1:]
+        if not rest or rest[0] not in ("x", "exec"):
+            continue
+        rest = rest[1:]
+        end = next((k for k, x in enumerate(rest) if x and set(x) <= set(";&|()")), len(rest))
+        rest = rest[:end]
+        if "--" in rest:
+            k = rest.index("--")
+            tools, command = [x for x in rest[:k] if not x.startswith("-")], rest[k + 1:k + 2]
+        else:
+            tools, command = [x for x in rest if not x.startswith("-")][:1], []
+        if not tools:
+            return "", ""
+        return tools[0], (command[0] if command else tools[0])
+    return None
+
+
+def resolved_command(command):
+    """A 1.x role's command (extract, review, sync) as it runs, through the same resolver as the
+    2.0 roles: a mise shim or wrapper is replaced by the install it runs, and one lore cannot
+    resolve is refused (LoreError), never run. A command whose first word is already the final
+    absolute binary runs unchanged, and a first word that is no executable (a shell builtin) is
+    left to sh, as before."""
+    word, rest = first_word(command)
+    exe = word if word and os.path.isabs(word) else (shutil.which(word) if word else None)
+    if not exe:
+        return command
+    real = resolve_binary(word)
+    return command if real == word else shlex.quote(real) + rest
+
+
+def mise_installs():
+    data = os.environ.get("MISE_DATA_DIR") or os.path.join(
+        os.environ.get("XDG_DATA_HOME") or os.path.join(os.path.expanduser("~"), ".local", "share"), "mise")
+    return os.path.join(data, "installs")
+
+
+def mise_binary(tool, command):
+    """The executable `command` inside mise's install of `tool` (`codex`, `codex@1.2`,
+    `npm:@scope/name`), under its `latest` link unless a version is named; None when absent."""
+    if not tool:
+        return None
+    name, version = tool, "latest"
+    at = tool.rfind("@")
+    if at > 0 and "/" not in tool[at:]:
+        name, version = tool[:at], tool[at + 1:] or "latest"
+    base = os.path.join(mise_installs(), re.sub(r"[:/@]+", "-", name).strip("-"), version)
+    cmd = os.path.basename(command)
+    if not cmd or not os.path.isdir(base):
+        return None
+    tries = [os.path.join(base, cmd), os.path.join(base, "bin", cmd), os.path.join(base, "node_modules", ".bin", cmd)]
+    for d, dirs, files in os.walk(base):   # then two levels down, outside node_modules
+        depth = 0 if d == base else os.path.relpath(d, base).count(os.sep) + 1
+        dirs[:] = sorted(x for x in dirs if x != "node_modules") if depth < 2 else []
+        if cmd in files:
+            tries.append(os.path.join(d, cmd))
+    for t in tries:
+        if os.path.isfile(t) and os.access(t, os.X_OK):
+            return t
+    return None
 
 
 def model_timeout():
@@ -542,15 +688,17 @@ def model_timeout():
 def role_command(store, role):
     """(name, command) of a role, or (None, None). The LORE_<ROLE>_CMD variable wins, then the
     config line `<role>: <command>`, then each host adapter's `<role>:` line in the order of the
-    config `<role>_models` (the 2.0 store's config for loremaster, the 1.x store's for the rest)."""
+    config `<role>_models` (the 2.0 store's config for loremaster and canon, the 1.x store's for
+    the rest). An adapter whose binary is missing, or is a mise wrapper lore cannot resolve, is
+    passed over."""
     env = os.environ.get(f"LORE_{role.upper()}_CMD")
     if env:
         return "override", env
     cfg = store.config()
     if cfg.get(role):
         return "config", cfg[role]
-    default = {"loremaster": LOREMASTER_MODELS_DEFAULT, "extract": "codex,claude,cmd,agy",
-               "review": "claude,codex", "sync": "codex"}[role]
+    default = {"loremaster": LOREMASTER_MODELS_DEFAULT, "canon": CANON_MODELS_DEFAULT,
+               "extract": "codex,claude,cmd,agy", "review": "claude,codex", "sync": "codex"}[role]
     key = {"extract": "extractors", "review": "reviewers", "sync": "sync_models"}.get(role, role + "_models")
     hosts = {h["name"]: h for h in lore.load_hosts()}
     for n in (x.strip() for x in cfg.get(key, default).split(",")):
@@ -561,13 +709,24 @@ def role_command(store, role):
 
 
 def host_binary(command):
-    """True when the adapter line's first word is an installed executable."""
+    """True when the adapter line's first word is an installed executable lore can run headless."""
+    return host_problem(command) is None
+
+
+def host_problem(command):
+    """Why an adapter line cannot run: None when it can, "" when its binary is not installed, or
+    the reason it is installed but unusable (a mise wrapper lore cannot resolve)."""
     try:
         word, _ = first_word(command)
-    except lore.LoreError:
-        return False
-    exe = word if word and os.path.isabs(word) else (shutil.which(word) if word else None)
-    return bool(exe and os.access(exe, os.X_OK))
+        if not word:
+            return ""
+        exe = word if os.path.isabs(word) else shutil.which(word)
+        if not exe or not os.access(exe, os.X_OK):
+            return ""
+        resolve_binary(word)
+    except lore.LoreError as err:
+        return str(err)
+    return None
 
 
 def run_command(command, prompt, timeout=None):
@@ -597,11 +756,11 @@ def run_command(command, prompt, timeout=None):
             os.unlink(pf)
 
 
-def run_model(store):
-    """The injected `run_model(prompt) -> str` for the Loremaster role."""
-    name, command = role_command(store, "loremaster")
+def run_model(store, role="loremaster"):
+    """The injected `run_model(prompt) -> str` for a model role (the Loremaster, Canon)."""
+    name, command = role_command(store, role)
     if not command:
-        raise lore.LoreError("no loremaster command: no host adapter with a 'loremaster:' line is installed")
+        raise lore.LoreError(f"no {role} command: no host adapter with a '{role}:' line is installed")
     return lambda prompt: run_command(command, prompt)
 
 
@@ -788,14 +947,28 @@ def cmd_inbox(_, args):
                     raise lore.LoreError("committed locally; the push failed")
 
 
+def check_reply(store, role, out):
+    """A role's reply to the check prompt read as the real run reads it: parsed, and its ops
+    validated against the store (the expected empty ops are valid). Raises LoreError."""
+    sys.modules.setdefault("lore", lore)
+    import lore_master
+    ops = lore_master.parse_reply(out)["ops"]
+    if store.exists():
+        errs = lore_master.validate(store, ops, allowed=lore_master.CANON_OPS if role == "canon" else lore_master.LOREMASTER_OPS)
+        if errs:
+            raise lore.LoreError(f"the reply's ops are not valid: {errs[0]}")
+
+
 def cmd_check(store1, args):
     """Report each role's command; run it headless with a tiny fixed prompt only with --live."""
     store = open_store(args)
     rows = []
-    for role in ("loremaster", "extract", "review", "sync"):
-        name, command = role_command(store if role == "loremaster" else store1, role)
+    for role in ("loremaster", "canon", "extract", "review", "sync"):
+        name, command = role_command(store if role in JSON_ROLES else store1, role)
         if not command:
-            rows.append((role, "unavailable", "no command (no host adapter line, or its CLI is not installed)", None))
+            why = "no command (no host adapter line, or its CLI is not installed)"
+            skipped = [f"{h['name']}: {p}" for h in lore.load_hosts() if h.get(role) for p in [host_problem(h[role])] if p]
+            rows.append((role, "unavailable", why + "".join(f"; {x}" for x in skipped), None))
             continue
         try:
             shown = absolute_command(command)
@@ -809,10 +982,12 @@ def cmd_check(store1, args):
         if args.live and state == "ok":
             t0 = dt.datetime.now()
             try:
-                out = run_command(command, CHECK_PROMPT if role == "loremaster" else "Reply with the single word ok.")
+                out = run_command(command, CHECK_PROMPT if role in JSON_ROLES else "Reply with the single word ok.")
                 live = f"  live: ok in {(dt.datetime.now() - t0).total_seconds():.1f}s, replied {len(out.strip())} characters"
                 if not out.strip():
                     raise lore.LoreError("empty reply")
+                if role in JSON_ROLES:
+                    check_reply(store, role, out)
             except lore.LoreError as err:
                 state, live, bad = "FAILED", f"  live: {err}", True
         bad = bad or state == "BROKEN"

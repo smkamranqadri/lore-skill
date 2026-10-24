@@ -6,6 +6,7 @@ instructions from prompts/loremaster.md, parse_reply reads the answer, validate 
 operation against the store before anything is written (all or nothing), and apply writes one
 batch as one commit. A retirement or a layout proposal is never applied: it waits in the Inbox
 (.git/lore/inbox/, this machine only) beside the hand edits and layout proposals P1 leaves.
+Canon (lore_canon) uses the same validator and apply with its own ops: reword, split and merge.
 
 The caller holds the store's run lock (the session-end step, `lore inbox`). Standard library only.
 """
@@ -31,22 +32,32 @@ STOP = {"the", "and", "for", "with", "when", "that", "this", "from", "into", "ar
         "you", "your", "its", "before", "after", "every", "always", "never", "use", "any", "all",
         "one", "only", "than", "then", "them", "they", "what", "each", "can", "has", "have"}
 
-# op: (required fields, optional fields); every field's type is in FIELD_TYPES
+# op: (required fields, optional fields); every field's type is in FIELD_TYPES. The optional
+# `file` of a rule_id op names the rule's file, for an id that is in two files.
 OPS = {
     "add": ({"file", "text", "explicit", "quote", "session"}, {"core"}),
     "describe": ({"file", "read_when"}, set()),
     "link": ({"file", "to"}, set()),
     "unlink": ({"file", "to"}, set()),
-    "move": ({"rule_id", "to"}, set()),
+    "move": ({"rule_id", "to"}, {"file"}),
     "supersede": ({"rule_id", "text", "quote"}, set()),
     "flag-contradiction": ({"rule_id", "with_text"}, set()),
-    "retire": ({"rule_id", "reason"}, set()),
+    "retire": ({"rule_id", "reason"}, {"file"}),
     "propose-layout": ({"top", "reason"}, set()),
+    "reword": ({"rule_id", "text"}, {"file"}),
+    "split": ({"file", "into"}, set()),
+    "merge": ({"from", "to"}, set()),
 }
-FIELD_TYPES = {"explicit": bool, "core": bool, "top": list}   # every other field is a string
+LOREMASTER_OPS = {"add", "describe", "link", "unlink", "move", "supersede", "flag-contradiction", "retire",
+                  "propose-layout"}
+CANON_OPS = {"describe", "link", "unlink", "move", "reword", "split", "merge", "retire"}   # never add: Canon invents nothing
+FIELD_TYPES = {"explicit": bool, "core": bool, "top": list, "into": list}   # every other field is a string
 MAY_BE_EMPTY = {"quote", "session"}
 LINE_MAX = {"text": TEXT_MAX, "with_text": TEXT_MAX, "reason": TEXT_MAX, "read_when": 200,
-            "quote": QUOTE_MAX, "session": 200, "file": 200, "to": 200, "rule_id": 40}
+            "quote": QUOTE_MAX, "session": 200, "file": 200, "to": 200, "from": 200, "rule_id": 40}
+RETIRED = "retired/"   # an accepted retirement lands here, at the same path; never in the layout or the index
+REJECTED = "rejected.json"   # in .git/lore, this machine only: retirements the owner rejected, by fingerprint
+REJECTED_MAX = 500
 
 
 class ReplyError(lore.LoreError):
@@ -95,6 +106,8 @@ class _Model:
             self.files[rel] = {"text": text, "meta": meta}
         self.touched = []
         self.inbox = []
+        self.gone = set()   # files a merge removed
+        self.moved = []     # (rule id, from, to) for each rule a move, split or merge carried
 
     def entries(self, rel):
         return self.files[rel]["meta"]["rules"]
@@ -103,8 +116,14 @@ class _Model:
         if rel not in self.touched:
             self.touched.append(rel)
 
-    def find(self, rid):
-        """(file, entry) of a rule id, or an error message."""
+    def find(self, rid, rel=None):
+        """(file, entry) of a rule id, or an error message. With `rel`, only that file is looked in."""
+        if rel is not None:
+            if rel not in self.files:
+                return None, f"{_safe(rel)} does not exist"
+            if rid not in self.entries(rel):
+                return None, f"no rule with id {_safe(rid)!r} in {rel}"
+            return rel, None
         hits = [rel for rel in self.files if rid in self.entries(rel)]
         if not hits:
             return None, f"no rule with id {_safe(rid)!r}"
@@ -129,6 +148,26 @@ class _Model:
 
     def create(self, rel):
         self.files[rel] = {"text": None, "meta": {"rules": {}, "reads": {}, "last_read": {}}}
+        self.gone.discard(rel)
+
+    def links(self, rel):
+        return set(self.files[rel]["meta"].get("links") or [])
+
+    def set_links(self, rel, links):
+        self.files[rel]["meta"]["links"] = sorted(links)
+        self.touch(rel)
+
+    def ordered(self, rel):
+        """A file's rule ids in the order of its lines."""
+        by_text = {e["text"]: eid for eid, e in self.entries(rel).items()}
+        return [by_text[t] for t in dict.fromkeys(lore_store.parse_rules(self.files[rel]["text"])[1]) if t in by_text]
+
+
+def original_quote(entry):
+    """The words a rule was filed from: recorded by add, set again only by supersede (the person
+    restated it), kept by reword, move, split and merge. A rule from before P3 (or a hand edit)
+    falls back to its quote, then its text."""
+    return entry.get("original_quote") or entry.get("quote") or entry.get("text", "")
 
 
 def symlinked(store, rel):
@@ -170,16 +209,20 @@ def layout_errors(top):
             errs.append(f"top entry {_safe(t)!r} is not a folder/ or a file.md name")
     if len(set(top)) != len(top):
         errs.append("top lists an entry twice")
+    if RETIRED in top:
+        errs.append(f"{RETIRED} is kept for retired rules and is not a layout entry")
     return errs
 
 
-def _shape(n, op):
+def _shape(n, op, allowed=None):
     """Shape errors of one op (name, fields, types, one line, no secret); [] when it is sound."""
     if not isinstance(op, dict):
         return [f"op {n}: not an object"]
     kind = op.get("op")
     if not isinstance(kind, str) or kind not in OPS:
         return [f"op {n}: unknown op {_safe(kind)!r}"]
+    if allowed is not None and kind not in allowed:
+        return [f"op {n}: {kind} is not an operation this role may use"]
     need, optional = OPS[kind]
     pre = f"op {n} ({kind}):"
     errs = []
@@ -213,14 +256,14 @@ def _quoted(op, items):
     return [i for i in items if q and q == _tidy(i.get("quote") or i.get("text") or "")]
 
 
-def _run(store, ops, items=None):
+def _run(store, ops, items=None, allowed=None):
     """Play the ops on a copy of the store. Returns (model, errors)."""
     if not isinstance(ops, list):
         return None, ["ops must be a list"]
     m = _Model(store)
     errs = []
     for n, op in enumerate(ops, 1):
-        bad = _shape(n, op)
+        bad = _shape(n, op, allowed)
         if bad:
             errs += bad
             continue
@@ -228,18 +271,26 @@ def _run(store, ops, items=None):
     return m, errs
 
 
+def _path_errors(m, field, rel):
+    """Why `rel` (the op's `field`) is not a rule file path inside the layout, or [] when it is."""
+    why = path_error(rel, m.top)
+    if why:
+        return [f"{field} {_safe(rel)!r} {why}"]
+    for target in (rel, lore_store.meta_rel(rel)):
+        link = symlinked(m.store, target)
+        if link:
+            return [f"{field} {_safe(rel)!r} passes through the symlink {_safe(link)}"]
+    return []
+
+
 def _step(m, kind, op, items):
     """One op on the model; returns its errors (and changes nothing when there are any)."""
     now, day = lore_store.now_iso(), m.day
-    for field in ("file", "to"):
+    for field in ("file", "to", "from"):
         if field in op:
-            why = path_error(op[field], m.top)
-            if why:
-                return [f"{field} {_safe(op[field])!r} {why}"]
-            for target in (op[field], lore_store.meta_rel(op[field])):
-                link = symlinked(m.store, target)
-                if link:
-                    return [f"{field} {_safe(op[field])!r} passes through the symlink {_safe(link)}"]
+            errs = _path_errors(m, field, op[field])
+            if errs:
+                return errs
     if kind == "add":
         rel, text = op["file"], _tidy(op["text"])
         if op.get("core") and not op["explicit"]:
@@ -264,12 +315,14 @@ def _step(m, kind, op, items):
         entries[eid] = {"text": text, "created": day, "explicit": op["explicit"], "count": 1, "dates": [day],
                         "confidence": lore.NEW_EXPLICIT if op["explicit"] else lore.NEW_CANDIDATE,
                         "sessions": [op["session"]] if op["session"] else [], "updated": now,
-                        "quote": _tidy(op["quote"])}
+                        "quote": _tidy(op["quote"]), "original_quote": _tidy(op["quote"]) or text}
         m.files[rel]["text"] = lore_store.add_rule_line(m.files[rel]["text"], text, _title(rel))
         m.touch(rel)
         return []
     if kind in ("describe", "link", "unlink"):
         missing = [op[f] for f in ("file", "to") if f in op and op[f] not in m.files]
+        if kind == "unlink" and missing == [op["to"]] and op["to"] in m.links(op["file"]):
+            missing = []   # a link to a file that is gone (a broken link) can still be taken out
         if missing:
             return [f"{_safe(missing[0])} does not exist (a new topic file is created only by add)"]
         if "core.md" in (op["file"], op.get("to")):
@@ -293,7 +346,11 @@ def _step(m, kind, op, items):
         if not errs:
             m.inbox.append(("layout", {"top": list(op["top"]), "reason": _tidy(op["reason"])}))
         return errs
-    rel, why = m.find(op["rule_id"])
+    if kind == "split":
+        return _split(m, op, now)
+    if kind == "merge":
+        return _merge(m, op, now)
+    rel, why = m.find(op["rule_id"], op.get("file"))
     if why:
         return [why]
     eid, entries = op["rule_id"], m.entries(rel)
@@ -308,10 +365,14 @@ def _step(m, kind, op, items):
             return [f"rule {eid} is already in {to}"]
         if m.copies(rel, entry["text"]) > 1:
             return [f"rule {eid} is in {rel} more than once; remove the extra line first"]
+        clash = _landing(m, to, eid, entry["text"])
+        if clash:
+            return [clash]
         m.files[rel]["text"] = lore_store.remove_rule_line(m.files[rel]["text"], entry["text"])
         del entries[eid]
-        m.entries(to)[eid] = dict(entry, updated=now)   # find() made sure no other file has the id
+        m.entries(to)[eid] = dict(entry, updated=now)
         m.files[to]["text"] = lore_store.add_rule_line(m.files[to]["text"], entry["text"], _title(to))
+        m.moved.append((eid, rel, to))
         m.touch(rel)
         m.touch(to)
         return []
@@ -332,7 +393,25 @@ def _step(m, kind, op, items):
             return [f"duplicate of rule {dup[1]} in {dup[0]}"]
         m.files[rel]["text"] = lore_store.replace_rule_line(m.files[rel]["text"], entry["text"], text)
         entry.pop("contradictions", None)   # the old wording is gone, and what it clashed with
-        entry.update(text=text, quote=_tidy(op["quote"]), updated=now, superseded=day)
+        # The person restated it: their new words are what later rewords keep (owner, 2026-10-23).
+        entry.update(text=text, quote=_tidy(op["quote"]), original_quote=_tidy(op["quote"]) or text,
+                     updated=now, superseded=day)
+        m.touch(rel)
+        return []
+    if kind == "reword":
+        # Same meaning, new words: the model checks it against the original quote; code keeps that
+        # quote, the item quote and any contradiction flag (the meaning, and so the clash, is unchanged).
+        text = _tidy(op["text"])
+        if lore.normalise(text) == lore.normalise(entry["text"]):
+            return ["the text is unchanged"]
+        if m.copies(rel, entry["text"]) > 1:
+            return [f"rule {eid} is in {rel} more than once; remove the extra line first"]
+        dup = m.duplicate(text, skip=eid)
+        if dup:
+            return [f"duplicate of rule {dup[1]} in {dup[0]}"]
+        m.files[rel]["text"] = lore_store.replace_rule_line(m.files[rel]["text"], entry["text"], text)
+        entry["original_quote"] = original_quote(entry)
+        entry.update(text=text, updated=now, reworded=day)
         m.touch(rel)
         return []
     if kind == "flag-contradiction":
@@ -350,11 +429,149 @@ def _step(m, kind, op, items):
     raise AssertionError(kind)   # pragma: no cover
 
 
-def validate(store, ops, items=None):
+def _landing(m, dst, eid, text):
+    """Why a rule cannot land in `dst` (its id or its words are there already, so the entry
+    there would be overwritten or doubled), or None."""
+    if dst not in m.files:
+        return None
+    if eid in m.entries(dst):
+        return f"{dst} already has a rule with id {eid}"
+    key = lore.normalise(text)
+    if any(lore.normalise(e.get("text", "")) == key for e in m.entries(dst).values()):
+        return f"{dst} already has the words of rule {eid}"
+    return None
+
+
+def _carry(m, src, eid, dst, now):
+    """Move one rule (its line and its sidecar entry, ids and quotes kept) from src to dst."""
+    entry = m.entries(src).pop(eid)
+    m.files[src]["text"] = lore_store.remove_rule_line(m.files[src]["text"], entry["text"])
+    if dst not in m.files:
+        m.create(dst)
+    m.entries(dst)[eid] = dict(entry, updated=now)
+    m.files[dst]["text"] = lore_store.add_rule_line(m.files[dst]["text"], entry["text"], _title(dst))
+    m.moved.append((eid, src, dst))
+
+
+def _split(m, op, now):
+    """An oversized file split by subject. Every rule of `file` goes to exactly one part; the old
+    path stays (as a part, or as a title-only file) and links to every new part, so the links and
+    read-when lines that land on it still land."""
+    rel, into = op["file"], op["into"]
+    if rel not in m.files:
+        return [f"{_safe(rel)} does not exist"]
+    if rel == "core.md":
+        return ["core.md is not split (it changes only through the inbox)"]
+    if not into:
+        return ["into is empty"]
+    parts, owner = [], {}
+    for k, part in enumerate(into, 1):
+        if not isinstance(part, dict) or set(part) != {"file", "rule_ids"}:
+            return [f"into {k}: needs exactly the fields file and rule_ids"]
+        f, ids = part["file"], part["rule_ids"]
+        if not isinstance(f, str) or not isinstance(ids, list) or not ids or not all(isinstance(i, str) for i in ids):
+            return [f"into {k}: file must be a string and rule_ids a non-empty list of rule ids"]
+        if any(lore.SECRET_RE.search(x) for x in [f] + ids):
+            return [f"into {k}: a secret-looking string (not shown)"]
+        errs = _path_errors(m, f"into {k}: file", f)
+        if errs:
+            return errs
+        if f == "core.md":
+            return [f"into {k}: core.md takes no part of a split"]
+        if f in parts:
+            return [f"into {k}: {f} is named twice"]
+        parts.append(f)
+        for i in ids:
+            if i in owner:
+                return [f"rule {_safe(i)} is in more than one part"]
+            owner[i] = f
+    entries = m.entries(rel)
+    stray = [i for i in owner if i not in entries]
+    if stray:
+        return [f"rule {_safe(stray[0])} is not in {rel}"]
+    left = [i for i in m.ordered(rel) if i not in owner]
+    if left:
+        return [f"rule(s) {', '.join(left)} of {rel} are in no part (a split takes each rule exactly once)"]
+    if parts == [rel]:
+        return ["a split names at least one file besides the one it splits"]
+    for eid in m.ordered(rel):
+        if m.copies(rel, entries[eid]["text"]) > 1:
+            return [f"rule {eid} is in {rel} more than once; remove the extra line first"]
+    for i, f in owner.items():
+        clash = _landing(m, f, i, entries[i]["text"]) if f != rel else None
+        if clash:
+            return [clash]
+    for eid in m.ordered(rel):
+        if owner[eid] != rel:
+            _carry(m, rel, eid, owner[eid], now)
+            m.touch(owner[eid])
+    if not (m.files[rel]["text"] or "").strip():
+        m.files[rel]["text"] = lore_store.render_rules(_title(rel), [])
+    m.set_links(rel, m.links(rel) | {f for f in parts if f != rel})
+    return []
+
+
+def _merge(m, op, now):
+    """A thin file folded into another: its rules (ids and quotes kept) and links move to `to`,
+    every link to it now points at `to`, and the file and its sidecar are removed."""
+    src, dst = op["from"], op["to"]
+    missing = [f for f in (src, dst) if f not in m.files]
+    if missing:
+        return [f"{_safe(missing[0])} does not exist"]
+    if "core.md" in (src, dst):
+        return ["core.md is not merged (it changes only through the inbox)"]
+    if src == dst:
+        return ["a file cannot be merged into itself"]
+    have = {lore.normalise(e.get("text", "")) for e in m.entries(dst).values()}
+    for eid in m.ordered(src):
+        e = m.entries(src)[eid]
+        if m.copies(src, e["text"]) > 1:
+            return [f"rule {eid} is in {src} more than once; remove the extra line first"]
+        if lore.normalise(e["text"]) in have or eid in m.entries(dst):
+            return [f"rule {eid} of {src} is already in {dst}; retire one copy first"]
+    for eid in m.ordered(src):
+        _carry(m, src, eid, dst, now)
+    _carry_reads(m.files[src]["meta"], m.files[dst]["meta"])
+    m.set_links(dst, (m.links(dst) | m.links(src)) - {src, dst})
+    for rel in list(m.files):
+        if rel not in (src, dst) and src in m.links(rel):
+            m.set_links(rel, (m.links(rel) - {src}) | {dst})
+    del m.files[src]
+    m.gone.add(src)
+    m.touch(src)
+    return []
+
+
+def _carry_reads(src, dst):
+    """A merged file's read history joins its target's: per machine, the reads add up (both files
+    were read) and the last read is the later one."""
+    reads, last = dst.setdefault("reads", {}), dst.setdefault("last_read", {})
+    for mach, n in (src.get("reads") or {}).items():
+        if isinstance(n, int) and n > 0:
+            have = reads.get(mach)
+            reads[mach] = (have if isinstance(have, int) else 0) + n
+    for mach, day in (src.get("last_read") or {}).items():
+        if isinstance(day, str) and day > str(last.get(mach) or ""):
+            last[mach] = day
+
+
+def op_file(store, op):
+    """The file an op is about, for a commit subject: its file (or from), else its rule's file."""
+    if not isinstance(op, dict):
+        return ""
+    if isinstance(op.get("file"), str):
+        return op["file"]
+    if isinstance(op.get("from"), str):
+        return op["from"]
+    rel, _ = _Model(store).find(op.get("rule_id"), op.get("file"))
+    return rel or ""
+
+
+def validate(store, ops, items=None, allowed=None):
     """Every problem with a batch of ops, checked against the store in order; [] means valid.
     With the queued `items`, each quote must be an item's words and `explicit` its item's flag.
-    Messages never echo a secret."""
-    return _run(store, ops, items)[1]
+    With `allowed`, any other op is refused. Messages never echo a secret."""
+    return _run(store, ops, items, allowed)[1]
 
 
 # ---- writing ----------------------------------------------------------------------------------
@@ -407,6 +624,9 @@ def _commit_writes(store, writes, subject):
 def _writes(m, rels):
     out = {}
     for rel in rels:
+        if rel in m.gone:   # merged away: the file and its sidecar go
+            out[rel] = out[lore_store.meta_rel(rel)] = None
+            continue
         out[rel] = m.files[rel]["text"]
         out[lore_store.meta_rel(rel)] = lore_store.dump_meta(m.files[rel]["meta"])
     return out
@@ -429,16 +649,73 @@ def _queue(store, kind, payload, source):
     return iid
 
 
-def apply(store, ops, *, source, items=None):
+def apply(store, ops, *, source, items=None, allowed=None, subject=None, queue=True):
     """Validate, then apply a batch as one commit (through lore_store.commit: the secret scan
-    runs, and the caller pushes). Retirements and layout proposals go to the Inbox instead.
+    runs, and the caller pushes). Retirements and layout proposals go to the Inbox instead, and
+    a pending retirement follows its rule when the batch moves it. `subject` replaces the commit
+    subject `<source>: <what changed>`. With `queue` False the Inbox is left alone: the result's
+    "pending" holds the (kind, payload) items and "moved" the rule moves, for a caller whose
+    commits land elsewhere (Canon's private checkout) to queue and relocate once they land.
     Raises OpsError, writing nothing, when the batch is not valid."""
-    m, errs = _run(store, ops, items)
+    m, errs = _run(store, ops, items, allowed)
     if errs:
         raise OpsError(errs)
     sha, changed = _commit_writes(store, _writes(m, m.touched),
+                                  _cap(subject) if subject else
                                   lambda changes: _cap(f"{source}: {lore_store.describe(changes)}"))
+    if not queue:
+        return {"commit": sha, "changed": changed, "pending": m.inbox, "moved": m.moved}
+    if sha:
+        _relocate(store, m.moved)
     return {"commit": sha, "changed": changed, "inbox": [_queue(store, k, p, source) for k, p in m.inbox]}
+
+
+def follow(rel, eid, moved):
+    """Where rule `eid` of `rel` ends after `moved` ((id, from, to) per move, split or merge),
+    replayed in order: A -> B -> A ends at A, and a copy of the id in another file stays put."""
+    for mid, src, dst in moved:
+        if mid == eid and src == rel:
+            rel = dst
+    return rel
+
+
+def _relocations(store, moved):
+    """{item id: file} for each pending retirement whose rule the moves carried elsewhere."""
+    out = {}
+    for p in sorted(glob.glob(os.path.join(_inbox_dir(store), "*.json"))):
+        try:
+            with open(p) as f:
+                item = json.load(f)
+            pay = item["payload"]
+            rel = follow(pay["file"], pay["rule_id"], moved)
+        except (OSError, ValueError, KeyError, TypeError):
+            continue
+        if item.get("kind") == "retire" and rel != pay["file"]:
+            out[os.path.basename(p)[:-5]] = rel
+    return out
+
+
+def _set_files(store, where):
+    """Point each pending item {id: file} at its file; an item no longer there is skipped. Setting,
+    not moving, so doing it twice is doing it once."""
+    for iid, rel in sorted(where.items()):
+        p = os.path.join(_inbox_dir(store), iid + ".json")
+        try:
+            with open(p) as f:
+                item = json.load(f)
+            item["payload"]["file"] = rel
+        except (OSError, ValueError, KeyError, TypeError):
+            continue
+        with open(p + ".tmp", "w") as f:
+            json.dump(item, f, indent=1, sort_keys=True)
+            f.write("\n")
+        os.replace(p + ".tmp", p)
+
+
+def _relocate(store, moved):
+    """Pending retirements follow their rule: an item naming a rule that moved (by a move, a split
+    or a merge, one hop or several, in order) now names the file it is in."""
+    _set_files(store, _relocations(store, moved))
 
 
 # ---- the model's side -------------------------------------------------------------------------
@@ -561,10 +838,10 @@ def file_items(store, items, run_model, *, source="loremaster"):
         return res
     reply = parse_reply(run_model(build_prompt(store, items, select_context(store, items))))
     res["answer"] = lore.redact(reply["answer"])
-    errs = validate(store, reply["ops"], items)
+    errs = validate(store, reply["ops"], items, allowed=LOREMASTER_OPS)
     if errs:
         return dict(res, rejected=errs)
-    res.update(apply(store, reply["ops"], source=source, items=items))
+    res.update(apply(store, reply["ops"], source=source, items=items, allowed=LOREMASTER_OPS))
     return res
 
 
@@ -645,6 +922,61 @@ def _remove_rule(m, rel, eid):
     del m.entries(rel)[eid]
 
 
+def _clear_flags(m, text):
+    """Contradiction flags raised against `text` (a rule now retired) are settled: taken off every
+    rule that carries one, unless another copy of those words is still a rule somewhere (the
+    clash stands). Returns the files changed."""
+    key, out = lore.normalise(text), []
+    if any(lore.normalise(e.get("text", "")) == key for rel in m.files for e in m.entries(rel).values()):
+        return out
+    for rel in m.files:
+        for e in m.entries(rel).values():
+            flags = e.get("contradictions")
+            if not isinstance(flags, list):
+                continue
+            kept = [f for f in flags if not (isinstance(f, dict) and lore.normalise(str(f.get("with", ""))) == key)]
+            if len(kept) != len(flags):
+                if kept:
+                    e["contradictions"] = kept
+                else:
+                    e.pop("contradictions")
+                if rel not in out:
+                    out.append(rel)
+    return out
+
+
+def retired_meta(rel):
+    """The sidecar of retired/<rel>: retired/<rel without .md>.json, beside it. Not under
+    .lore/meta, which reconciliation keeps to the layout's files, so it is never dropped there."""
+    return RETIRED + rel[:-3] + ".json"
+
+
+def _retire_writes(store, m, rel, eid, reason=""):
+    """The writes that retire one rule: out of its file (and its sidecar), its line kept in
+    retired/<same path> and its whole sidecar entry (id, quotes, sessions, counts) in that file's
+    sidecar (outside the layout, so never indexed or linted, and kept in git), and any
+    contradiction flag raised against it settled."""
+    entry = dict(m.entries(rel)[eid])
+    text = entry["text"]
+    _remove_rule(m, rel, eid)
+    writes = _writes(m, [rel] + [r for r in _clear_flags(m, text) if r != rel])
+    old = RETIRED + rel
+    have = store.read(old)
+    if text not in lore_store.parse_rules(have)[1]:
+        writes[old] = lore_store.add_rule_line(have, text, _title(rel))
+    try:
+        kept = json.loads(store.read(retired_meta(rel)) or "{}")
+    except ValueError:
+        kept = {}
+    kept = kept if isinstance(kept, dict) else {}
+    rules = kept["rules"] = kept["rules"] if isinstance(kept.get("rules"), dict) else {}
+    same = not isinstance(rules.get(eid), dict) or rules[eid].get("text") == text
+    key = eid if same else lore_store.new_id(text, set(rules))   # the id retired before with other words keeps its entry
+    rules[key] = dict(entry, retired=m.day, retired_reason=_tidy(reason))
+    writes[retired_meta(rel)] = lore_store.dump_meta(kept)
+    return writes
+
+
 def _placeholder(store, rel):
     """A file a layout entry may hold and still count as empty: `.gitkeep`, or a rule file with
     nothing but its title (what init writes)."""
@@ -692,14 +1024,14 @@ def _accept_layout(store, item):
 
 
 def inbox_accept(store, item_id):
-    """Apply one Inbox item as its own commit: a retirement removes the rule, a layout proposal
+    """Apply one Inbox item as its own commit: a retirement moves the rule to retired/, a layout proposal
     becomes the layout, a hand edit is kept as a rule. Returns {"commit", "changed", "kind"}."""
     item = _item(store, item_id)
     kind = item["kind"]
     if kind == "retire":
         m, rel, eid, _ = _rule_of(store, item)
-        _remove_rule(m, rel, eid)
-        sha, changed = _commit_writes(store, _writes(m, [rel]), _cap(f"inbox: retire {eid} from {rel}"))
+        sha, changed = _commit_writes(store, _retire_writes(store, m, rel, eid, str(item["payload"].get("reason") or "")),
+                                      _cap(f"inbox: retire {eid} from {rel}"))
     elif kind == "layout":
         sha, changed = _accept_layout(store, item)
     elif kind == "hand-edit":
@@ -713,11 +1045,104 @@ def inbox_accept(store, item_id):
 
 
 def inbox_reject(store, item_id):
-    """Drop one Inbox item. A rejected hand edit is taken out of its file, as its own commit;
-    every other kind leaves the store as it is."""
+    """Drop one Inbox item. A rejected hand edit is taken out of its file, as its own commit; a
+    rejected retirement is remembered (see `rejected`) so it is not proposed again on the same
+    evidence; every other kind leaves the store as it is."""
     item = _item(store, item_id)
     if item["kind"] == "hand-edit":
         m, rel, eid, _ = _rule_of(store, item)
         _remove_rule(m, rel, eid)
         _commit_writes(store, _writes(m, [rel]), _cap(f"inbox: reject hand edit {eid} in {rel}"))
+    elif item["kind"] == "retire":
+        try:
+            m, rel, eid, _ = _rule_of(store, item)
+        except lore.LoreError:
+            m = None   # the rule moved on or changed: nothing left to remember it against
+        if m:
+            seen = rejected(store)
+            for f, k in answered(store, m, rel, eid):
+                seen[k] = {"rule_id": eid, "file": rel, "gate": f["gate"], "rejected": m.day}
+            path = store.local(REJECTED)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path + ".tmp", "w") as f:
+                json.dump(dict(sorted(seen.items(), key=lambda kv: str(kv[1].get("rejected")))[-REJECTED_MAX:]),
+                          f, indent=1, sort_keys=True)
+                f.write("\n")
+            os.replace(path + ".tmp", path)
     _drop(store, item)
+
+
+def flagged(entry):
+    """The words a rule is flagged against, normalised, sorted."""
+    return sorted({lore.normalise(str(x["with"])) for x in entry.get("contradictions") or []
+                   if isinstance(x, dict) and x.get("with")})
+
+
+def answered(store, m, rel, eid):
+    """The findings a retirement of this entry answers, as lint reports them now, each with its key:
+    [(finding, fingerprint)] for each duplicate pair the entry is in, each contradiction it is
+    flagged in, and each one flagged against its words. [] when lint is not installed."""
+    try:
+        import lore_lint
+    except ImportError:
+        return []
+    found = lore_lint.lint(store)
+    words = lore.normalise(m.entries(rel)[eid].get("text", ""))
+    out = []
+    for f, about in zip(found, entries(store, m, found)):
+        if about and ((rel, eid) in [(r, i) for r, i, _ in about[0]] or words in about[1]):
+            out.append((f, key(about)))
+    return out
+
+
+def entries(store, m, findings):
+    """For each finding, what it is about, file-qualified, as lint's gate found it: (the entries,
+    each (file, id, normalised words); the words a contradiction is flagged against), or None for a
+    gate a retirement does not settle or a finding lint does not make. A duplicate's pair is the
+    one lint's own detector found for that finding, so two copies of an id in two files are two
+    entries; a contradiction is about the flagged entry in the finding's file."""
+    pairs = _duplicate_pairs(store) if any(f.get("gate") == "duplicate" for f in findings) else {}
+    out = []
+    for f in findings:
+        rel, ids = f.get("file"), f.get("rule_ids") or []
+        if f.get("gate") == "duplicate":
+            pair = pairs.get(json.dumps(f, sort_keys=True))
+            out.append((pair, ()) if pair else None)
+        elif f.get("gate") == "contradiction" and len(ids) == 1 and rel in m.files and ids[0] in m.entries(rel):
+            e = m.entries(rel)[ids[0]]
+            out.append((((rel, ids[0], lore.normalise(e.get("text", ""))),), tuple(flagged(e))))
+        else:
+            out.append(None)
+    return out
+
+
+def _duplicate_pairs(store):
+    """{duplicate finding (as JSON): its two entries}, from lint's own detector: each pair it finds,
+    matched to the finding it makes for that pair, in the order it makes them."""
+    import lore_lint as L
+    files, lim = L._files(store), L.limits(store)
+    rules = [L._Rule(f.rel, eid, r) for f in files for eid, r in zip(f.ids, f.rules)]   # as L._duplicates builds them
+    pairs = [(rules[i], rules[j]) for i, j in L._candidates(rules, lim) if L._same(rules[i], rules[j], lim)]
+    return {json.dumps(f, sort_keys=True): tuple((r.file, r.id, r.norm) for r in pair)
+            for f, pair in zip(L._duplicates(files, lim), pairs)}
+
+
+def key(about):
+    """A finding's fingerprint, from what it is about (see `entries`): the file-qualified entries with
+    their words and, for a contradiction, the words it is flagged against (so the gates never share
+    a key: a pair has two entries and no such words, a contradiction one entry and some). A rejected
+    retirement keeps the keys of the findings it answered; when any of this changes (a new pair is
+    new entries) the key does."""
+    raw = json.dumps([sorted(about[0]), sorted(about[1])], ensure_ascii=False)
+    return hashlib.sha1(raw.encode()).hexdigest()[:16]
+
+
+def rejected(store):
+    """{finding fingerprint: {rule_id, file, gate, rejected}} of the findings answered by a
+    retirement the owner rejected."""
+    try:
+        with open(store.local(REJECTED)) as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    return {k: v for k, v in data.items() if isinstance(v, dict)} if isinstance(data, dict) else {}
