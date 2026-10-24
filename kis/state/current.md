@@ -29,17 +29,20 @@
 - P1 done 2026-10-23 and installed live as 2.0.0-p1 (`lore-2.0` at `75cbc2d`; proof in the plan's
   Status). 2.0 store `~/.agents/lore`, private hub `smkamranqadri/lore-memory`, shim
   `~/.local/bin/lore`. 1.x keeps running beside it.
-- P2 done 2026-10-23 and installed live as 2.0.0-p2 (`lore-2.0` at `1abe256`; proof in the plan's
-  Status). `lore remember` and the Loremaster filing step exist; agents do not call them until P5
-  delivers the 2.0 index. Open: role commands resolve to the mise wrappers
-  (`~/.local/bin/claude`, `codex`), which hung without a TTY in soak 1; set `loremaster:` in the
-  config to the real binary before relying on it outside a session. Next: P3 (Canon).
+- P2 done 2026-10-23 (installed 2.0.0-p2) and P3 done 2026-10-24, installed live as 2.0.0-p3
+  (`lore-2.0` at `46285dc`; proof and owner decisions in the plan's Status). Every role command
+  resolves to the real binary, not the mise wrapper. Agents do not call `lore remember` until P5
+  delivers the 2.0 index. Next: P4a (UI: Memory, Graph, Inbox, Changes).
+- Live store `~/.agents/lore` holds no rules yet by the owner's choice (filing session in P5); its
+  queue has a stray temp file `.git/lore/queue/.in-1792702601-...` from 2026-10-23, ignored by
+  filing, not deleted. Live-check evidence store: the session scratchpad `canon-live/`.
+- Orchestration now uses the `herdr-orch` skill (owner runs `/herdr-orch`; the old orch CLI and
+  skill are removed): one labeled tab per worker, `herdr agent wait` without `--until` (idle,
+  done and blocked all end it), a turn counts as finished only when `completion_seq` rises; a
+  Herdr restart resets `completion_seq`. Registry: `.orch/lore-2.0/registry.md`.
 - Soak 2 issue (1.x, before P1): 23:29 run on 2026-10-22 logged `fail` because the headless Codex
   had no Tartib tools; Tartib MCP and the Codex token both answer 200 at 01:2x, so it was transient.
   Backoff to ~01:29, 7 files pending push; next session end retries.
-- orch on Herdr: spawn pastes without submitting, finish notices missing or early (Tartib #524,
-  orch-skill ideas 15 and 16); agent `orch-fix` in the orch-skill workspace, coordinated by the
-  owner. Until fixed, this orch tracks completion with its own watchers and `verify.sh`.
 - Scratch left running from the understory evaluation (session scratchpad, not this repo):
   CLIProxyAPI on 127.0.0.1:8317 in the owner's terminal, understory on :3800 with dreaming every
   5 min. Stop both when the evaluation ends.
