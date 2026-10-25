@@ -1,5 +1,34 @@
 # Changelog
 
+## 2.0.0-p4a (unreleased)
+
+lore 2.0, phase 4a: the UI for 2.0.0 (Memory, Graph, Inbox and a read-only Changes) and its local
+server. 1.x behaviour is unchanged. Revert (`lore revert` and reverting from Changes) is deferred
+to P4b: it was built and reviewed in five rounds, and the last review still found work it could
+lose, so this phase ships without it.
+
+- `lore ui [--port N]`: a standard-library server on 127.0.0.1 only (the first free port from 3870
+  to 3889), printing one line, `lore ui: http://127.0.0.1:<port>/#t=<token>`, and opening no
+  browser. Every response checks the `Host` header first (`127.0.0.1:<port>` or
+  `localhost:<port>` only) and carries `nosniff`, `no-referrer` and a `default-src 'self'` CSP; no
+  response has a CORS header or sets a cookie, and `OPTIONS` is 405. The JSON API needs the token
+  in an `X-Lore-Token` header (constant-time compare); the token lives in memory only and is never
+  logged. Read routes (summary, memory, file, graph, inbox, changes, commit) take no lock and write
+  nothing; Changes pages are slices of one traversal from HEAD, so a merged history is listed once.
+  The write routes (Inbox accept and reject) take the run lock without waiting (busy is 409) and
+  call the same functions as `lore inbox`, so the commits are the same; `pushed` is true, false
+  (the push failed) or null (no hub). A request's line, headers and body must arrive within 10
+  seconds (`LORE_UI_TIMEOUT`), or it is closed unanswered; at most 16 are served at once, a
+  connection beyond them closed.
+- `ui/`: the UI source, React + Vite + TypeScript + Tailwind + d3-force, with Playwright
+  (Chromium) tests; exact versions, lockfile committed, node pinned in `ui/.nvmrc` and `engines`.
+  The built bundle ships in `skills/lore/ui/dist/` (no source maps, no external URL). `npm run
+  check-dist` rebuilds into a temporary folder and fails, naming each file, when the committed
+  bundle differs; CI's new `ui` job runs it and the Playwright tests.
+- Known limit, from P1 (reported in P4a, not changed): when the hub has another machine's commits,
+  the push's fetch-rebase replays local commits without their merges, so work recorded only by a
+  local merge commit (a file the merge itself added) is lost locally and on the hub.
+
 ## 2.0.0-p3 (unreleased)
 
 lore 2.0, phase 3, Canon runs and wiring (lint and its gates are `lore_lint.py`, stream E).

@@ -132,7 +132,7 @@ def push_step(store, force=False):
     Returns one status line; raises nothing."""
     url = hub_url(store)
     if not url:
-        return "hub: none (local git only)"
+        return NO_HUB
     st = load_state(store)
     if st["push_fails"] and not force and st.get("last_fail"):
         age = (dt.datetime.now().astimezone() - dt.datetime.fromisoformat(st["last_fail"])).total_seconds()
@@ -915,6 +915,41 @@ def inbox_summary(it):
     return lore.redact(" ".join(what.split()))[:160]
 
 
+NO_HUB = "hub: none (local git only)"
+
+
+def pushed(line):
+    """A push_step line as the UI's `pushed`: True (pushed), None (no hub set), False (a hub is
+    set and the push failed or waits on the backoff)."""
+    if line == NO_HUB:
+        return None
+    return line.startswith("hub: pushed")
+
+
+def inbox_accept(store, item_id):
+    """Accept one Inbox item and push: {"kind", "commit": sha or None, "push": line, "pushed": see pushed}.
+    `lore inbox accept` and the UI both call this; the caller holds the store lock."""
+    sys.modules.setdefault("lore", lore)
+    import lore_master
+    res = lore_master.inbox_accept(store, item_id)
+    line = push_step(store, force=True)
+    return {"kind": res["kind"], "commit": res.get("commit"), "push": line, "pushed": pushed(line)}
+
+
+def inbox_reject(store, item_id):
+    """Reject one Inbox item; a reject that made a commit (a hand edit) is pushed: {"commit": sha
+    or None, "push": line or None, "pushed": see pushed, None without a commit}. `lore inbox
+    reject` and the UI both call this; the caller holds the store lock."""
+    sys.modules.setdefault("lore", lore)
+    import lore_master
+    head = store.git("rev-parse", "HEAD")[1].strip()
+    lore_master.inbox_reject(store, item_id)
+    if store.git("rev-parse", "HEAD")[1].strip() == head:
+        return {"commit": None, "push": None, "pushed": None}
+    line = push_step(store, force=True)
+    return {"commit": store.git("rev-parse", "--short", "HEAD")[1].strip(), "push": line, "pushed": pushed(line)}
+
+
 def cmd_inbox(_, args):
     store = open_store(args)
     store.require()
@@ -930,21 +965,27 @@ def cmd_inbox(_, args):
             for it in items:
                 print(f"{it['id']}  {it['kind']}  {inbox_summary(it)}")
         elif args.action == "accept":
-            res = lore_master.inbox_accept(store, args.id)
+            res = inbox_accept(store, args.id)
             print(f"accepted {args.id}: " + (f"committed {res['commit']}" if res.get("commit") else "nothing to commit"))
-            line = push_step(store, force=True)
-            print(line)
-            if "FAILED" in line:
+            print(res["push"])
+            if "FAILED" in res["push"]:
                 raise lore.LoreError("committed locally; the push failed")
         else:
-            head = store.git("rev-parse", "HEAD")[1].strip()
-            lore_master.inbox_reject(store, args.id)
+            res = inbox_reject(store, args.id)
             print(f"rejected {args.id}")
-            if store.git("rev-parse", "HEAD")[1].strip() != head:   # a rejected hand edit is a commit
-                line = push_step(store, force=True)
-                print(line)
-                if "FAILED" in line:
+            if res["push"] is not None:   # a rejected hand edit is a commit
+                print(res["push"])
+                if "FAILED" in res["push"]:
                     raise lore.LoreError("committed locally; the push failed")
+
+
+def cmd_ui(_, args):
+    """Serve the UI on 127.0.0.1 in the foreground (lore_ui)."""
+    store = open_store(args)
+    store.require()
+    sys.modules.setdefault("lore", lore)
+    import lore_ui
+    lore_ui.serve(store.root, args.port, getattr(args, "today", None))
 
 
 def check_reply(store, role, out):

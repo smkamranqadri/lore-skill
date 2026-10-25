@@ -969,6 +969,8 @@ def main(argv=None):
     cn.add_argument("--force", action="store_true", help="run even when lint's gates say it is not due")
     cl = sub.add_parser("canon-log", help="Canon's commits from git, one line each")
     cl.add_argument("--days", type=int, default=7)
+    ui = sub.add_parser("ui", help="serve the 2.0 store's UI on 127.0.0.1 (prints its URL with a token)")
+    ui.add_argument("--port", type=int, help="this port only (default: the first free one from 3870 to 3889)")
     args = p.parse_args(argv)
     store = Store(os.path.abspath(os.path.expanduser(args.store)), today(args))
     handlers = {"init": cmd_init, "add": cmd_add, "drop": cmd_drop, "maintain": cmd_maintain,
@@ -988,16 +990,16 @@ def main(argv=None):
                          "merge": lore_sync.cmd_merge, "sync-done": lore_sync.cmd_sync_done,
                          "sync-run": lore_sync.cmd_sync_run, "sync-log": lore_sync.cmd_sync_log,
                          "sync-timer": lore_sync.cmd_sync_timer})
-    if args.cmd in ("store", "hub", "remember", "inbox", "check"):
+    if args.cmd in ("store", "hub", "remember", "inbox", "check", "ui"):
         sys.modules.setdefault("lore", sys.modules[__name__])
         import lore_hub
         handlers.update({"store": lore_hub.cmd_store, "hub": lore_hub.cmd_hub, "remember": lore_hub.cmd_remember,
-                         "inbox": lore_hub.cmd_inbox, "check": lore_hub.cmd_check})
+                         "inbox": lore_hub.cmd_inbox, "check": lore_hub.cmd_check, "ui": lore_hub.cmd_ui})
     if args.cmd in ("lint", "canon", "canon-log"):
         sys.modules.setdefault("lore", sys.modules[__name__])
         import lore_canon
         handlers.update({"lint": lore_canon.cmd_lint, "canon": lore_canon.cmd_canon, "canon-log": lore_canon.cmd_canon_log})
-    if args.cmd not in ("init", "setup", "store", "hub", "remember", "inbox", "check", "lint", "canon", "canon-log") \
+    if args.cmd not in ("init", "setup", "store", "hub", "remember", "inbox", "check", "lint", "canon", "canon-log", "ui") \
             and not os.path.isdir(store.root):
         print(f"Error: no store at {store.root}; run init first", file=sys.stderr)
         return 1
