@@ -26,8 +26,6 @@ Scope is coding agents only. The 2.0 direction is in `../intent/plan-2026-10-22-
   5-minute interval, it ran 29 dreams: 1 changed files (the split), 28 ran the model and changed
   nothing, because its gates still saw work after the split. Gates must turn quiet once fixed.
 
-The sections below are history up to 0.6.0; current reality is in `../state/current.md`.
-
 ## Neighbours
 
 - **KIS** (`../kis-loop-skill`, installed per project under `.agents/skills/kis`): project
@@ -36,103 +34,24 @@ The sections below are history up to 0.6.0; current reality is in `../state/curr
   per-project Tartib status space belongs to them, not to lore.
 - Each of the three works alone; none requires another.
 
-## Current install and store
+## Install (checked 2026-10-25)
 
-- Lore 0.5.0 installs at `~/.agents/skills/lore`, with Claude discovery linked at
-  `~/.claude/skills/lore` and commands at `~/.claude/commands/lore`.
-- Commands: `/lore:load`, `/lore:retro`, `/lore:fold`, `/lore:backend`; other hosts name
-  the step. Backend config lives at `~/.agents/memory/config`.
-- No config or `backend: files` means the Markdown store at `~/.agents/memory/`.
-  With an MCP backend, that folder holds the snapshot, pinned ids and pending queue.
-- The owner's backend is Tartib, space `ai-agents`; the mapped note identities and pinned-id
-  load path are described below. Lore never creates a space or uses host memory as its store.
+- The skill installs at `~/.agents/skills/lore` (2.0.0-p3), linked for Claude at
+  `~/.claude/skills/lore` and `~/.claude/commands/lore` (commands sync, learn-taste, retro). The
+  installer leaves a correct link alone and keeps and reports anything else at the path.
+- 1.x store `~/.agents/memory` with the Tartib hub; 2.0 store `~/.agents/lore` (git) with the
+  private hub `github.com/smkamranqadri/lore-memory`, shim `~/.local/bin/lore`. Both run until P5.
+- Vendored KIS 0.10.1 under `.agents/skills/kis`.
+- History before 1.0 (0.x: `lore-store.sh`, Tartib note ids, the core split) is in git and the
+  1.0.0 commit `90b0f72`.
 
-## Seed sources for profile and references
+## Test facts
 
-Claude Code's per-project memory (`~/.claude/projects/*/memory/*.md`, 33 files on
-2026-10-09, frontmatter `type: user | feedback | project | reference`), `~/.claude/CLAUDE.md`,
-and KIS Knowledge files. Read once for the seed; lore never depends on them afterwards.
-Phase 3 read the 6 `user`/`reference` entries, CLAUDE.md and the cross-project KIS references,
-drafted `.orch/lore/seed-candidates.md`, and wrote only the owner-approved lines
-(`.orch/lore/seed-approved.md`) as the two notes.
-
-## Shape
-
-Like orch-skill: `skills/lore/` ships and is copied verbatim to `~/.agents/skills/lore`; the
-installer also makes the Claude links `~/.claude/skills/lore` (-> `../../.agents/skills/lore`) and
-`~/.claude/commands/lore` — a correct link is left alone, anything else at the path is kept and
-reported, even with `--force`; `bootstrap.sh` installs, checks and updates; `tests/run.sh` runs the
-tests. KIS 0.10.0 is installed in this repo from the local `../kis-loop-skill` clone.
-
-Phase 1 (2026-10-09) ships `skills/lore/SKILL.md`, the `load`/`retro`/`fold` commands,
-`backends/files.md`, and `scripts/lore-store.sh` (subcommands: init, list, read, sha, create,
-add-thought, bump-rule, fold-done). Note format: one rule per source line, `(×N)` at the end of
-a rule, thoughts under `## Thoughts`. Tests in `tests/` install into a temporary HOME.
-
-Phase 2a (2026-10-09, version 0.2.0) ships `backends/tartib.md` and a `config` subcommand on
-`lore-store.sh` that resolves the backend, space and mapping file from `~/.agents/memory/config`
-(no config, or `backend: files`, means the files backend). SKILL.md and the commands now name the
-eight operations and read the mapping of the configured backend instead of naming tools. The live
-Tartib space `ai-agents` holds 12 notes; the ones lore maps: `Agents: start here` (333),
-`Agents: preferences` (323), `Agents: core rules` (324), `Agents: coordinating parallel agents`
-(325), and the `Gotchas: …` notes. Lore uses the configured space only; it never creates one.
-
-Phase 3 (2026-10-09, version 0.3.0) adds the two notes. `profile.md` (Tartib `User: profile`, 405)
-and `references.md` (`User: references`, 406) join the store layout and the files backend's
-starter notes; load reads the profile always and references only when a task needs a location; a
-profile fact lands only after the owner confirms it in words, and a reference never holds a secret,
-address or value. `ai-agents` now holds 14 notes; `Agents: start here` links both new notes.
-Proved by `tests/run.sh` (the two new `init` guards mutation-checked) and
-`.orch/lore/proof-phase3-tartib.txt`.
-
-Phase 4 (2026-10-09, version 0.4.0) adds the fallback. When the configured backend is an MCP and it
-is unreachable, the store becomes a snapshot and the agent offers exactly three choices: reconnect
-it, work from the snapshot for now (each write goes to the snapshot **and** to `pending.md`, Fold is
-refused, and the queue replays at the next load), or switch to files for good. `lore-store.sh` adds
-`snapshot-write`/`snapshot-read`, `queue-add`/`queue-list`/`queue-pop`/`queue-clear`,
-`fallback-write` (snapshot + queue together) and `switch-files`; a replay applies entries oldest
-first and pops each only after its write succeeded, stopping at the first failure and keeping the
-rest. A new `/lore:backend` command drives config, reachability, reconnect, replay and switch. The
-MCP calls stay the agent's, per the mapping; the files-side mechanics are proved in temp homes by
-`tests/test-fallback.sh` and `.orch/lore/proof-phase4.txt`. The live acceptance of 0.4.0 passed
-2026-10-09 (`.orch/lore/live-acceptance-0.4.0.md`); it found that a replay must first `search` for
-the target note's id, which the old "before any read" wording did not allow.
-
-0.4.1 (2026-10-09) fixes that wording — a replay runs before the load's own note reads and may look
-up each target note it writes — and has `install-skill.sh` create the Claude discovery link
-`~/.claude/skills/lore` under the `--no-claude-link` opt-out (correct: left alone; anything else:
-kept and reported even with `--force`), with `bootstrap.sh check` reporting a missing or different
-link. It also pins the snapshot rendering: `lore-store.sh snapshot-render` writes the title once as
-the H1, the rest of the note's text byte for byte, then `## Thoughts` per `--thought <date> <text>`
-(the tartib mapping names the call), so two agents produce the same bytes. Proved by
-`tests/test-skill-links.sh` (8 guards mutation-checked), a `snapshot-render` fixture (7 guards
-mutation-checked) and `.orch/lore/proof-041.txt`.
-
-0.5.0 (2026-10-09, branch `lore-ids`) pins the load path to ids. A load reads each mapped note by
-its pinned id (`get_item <id>`) and never by `search` or a space listing; the ids live in the store
-(`~/.agents/memory/ids`, `<note><TAB><id>` plus a title for gotchas), not in the shipped mapping, so
-`bootstrap.sh update` cannot clobber them. `lore-store.sh` adds `ids-list`, `ids-pin <note> <id>
-[title]`, `load-plan [--note <note>]...` (the read and title for each note, the queue length and the
-snapshot check) and `load-size <note>...` (the load's size line, budget from `budget:` in the config,
-default 60000). The default load is preferences, core rules and the profile; a gotchas note only for
-a stack in play, coordinating only when briefing agents, references only when a location is needed.
-An absent or stale pin self-heals with **one** `search` and is reported, then re-pinned. It cuts a
-live load from ~171k chars (5 `search` + 4 `get_item`) or ~139k (one listing) to 25,990 chars for the
-three notes, and drops the ~30k of skill internals a load used to read. Proved by the new
-`tests/test-load-path.sh` (4 guards mutation-checked), `tests/run.sh`, a clean live
-`bootstrap.sh update`/`check` to 0.5.0, and `.orch/lore-ids/proof.txt`.
-
-0.6.0 (2026-10-14, branch `rules-split`) splits the always-loaded core. `Agents: core rules` (74
-numbered rules, 17,860 chars) becomes a small 13-rule core plus four on-demand topic notes:
-`core-verify.md` (`Agents: core rules - verify and test`), `core-production.md` (`Agents: core rules
-- production, data and secrets`), `core-tools.md` (`Agents: core rules - git and tools`) and
-`core-user.md` (`Agents: core rules - working with the user`). Every rule keeps its number and text
-byte-for-byte (a rule moves, it is not rewritten), so a cross-reference elsewhere ("core rule 27")
-still resolves through an index line carried by the core. `lore-store.sh` maps the four new titles in
-`default_title`, and `load-plan` refuses a `--note` outside the known set (a mapped note,
-`gotchas/*`, `core-*.md`). The default load drops from 27,007 chars to 14,964, and the core is 5,817
-loaded (<= 6,000). Proved by new guards in `tests/test-load-path.sh` (the four topic notes, a
-source-scanning `core-*.md` count against the mapping, `--note` refusal) and `tests/test-store.sh`
-(the starter lists the topic notes), each mutation-checked, and by `.orch/rules-split/check-split.sh`
-(74/74 covered exactly once, byte-identical). The Tartib migration is drafted in
-`orch-skill .orch/rules-split/migration.md`; it is **not applied** by the builder.
+- `tests/run.sh` fails four older suites (test-canon, test-lint, test-master, test-store2) when
+  `TMPDIR` is long (about 130 characters, such as an agent's session scratchpad): the index-budget
+  tests print the store path into the index. They pass from a short path; run proof runs with
+  `TMPDIR=/home/mkamran/.cache/<dir>` (checked on base `1f6dff3`, 2026-10-24).
+- The 1.x `lore-sync.timer` (`OnBootSec=2min`, `OnUnitActiveSec=6h`) never fires after a login
+  more than 2 minutes after boot: `OnBootSec` counts from kernel boot and has passed when the user
+  manager starts the timer, and `OnUnitActiveSec` needs a run of the service in this boot
+  (journal and `systemctl show`, checked 2026-10-25). `OnStartupSec` counts from the user manager.
