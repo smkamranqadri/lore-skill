@@ -1,0 +1,131 @@
+@import "tailwindcss";
+
+@theme static {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+  /* Solid buttons: their own tokens, because a scale shade cannot be both a tint and a solid. */
+  --color-accent: #4f46e5;
+  --color-accent-hover: #4338ca;
+  --color-accent-off: #a5b4fc;
+  --color-danger: #e11d48;
+  --color-danger-hover: #be123c;
+  --color-danger-off: #fda4af;
+  --color-on-solid: #ffffff;
+  --color-scrim: rgb(28 25 23 / 0.4);
+  --color-page: #f6f5f1;
+}
+
+/*
+ * The graph canvas, its edges, outlines and labels. Node colours are fixed (they mean a folder);
+ * everything around them follows the theme.
+ */
+:root {
+  color-scheme: light;
+  --g-bg: #ffffff;
+  --g-edge: #a1a1aa;
+  --g-edge-lit: #52525b;
+  --g-outline: #ffffff;
+  --g-label: #27272a;
+  --g-core-ring: #52525b;
+  --g-btn: #ffffff;
+  --g-btn-hover: #f4f4f5;
+}
+
+/*
+ * Dark is the default. Instead of a dark: variant on every class, the shades the app uses are
+ * remapped here, by role: 50-200 are tints and borders (deep and quiet), 600-900 are text (light).
+ * Every pair was checked against WCAG AA on zinc-900 and zinc-950.
+ */
+.dark {
+  color-scheme: dark;
+
+  --color-white: #18181b;
+  --color-page: #09090b;
+  --color-stone-50: #1f1f23;
+  --color-stone-100: #27272a;
+  --color-stone-200: #27272a;
+  --color-stone-300: #3f3f46;
+  --color-stone-400: #8b8b95;
+  --color-stone-500: #a1a1aa;
+  --color-stone-600: #b4b4bc;
+  --color-stone-700: #d4d4d8;
+  --color-stone-800: #e4e4e7;
+  --color-stone-900: #f4f4f5;
+
+  --color-indigo-50: #1e1b4b;
+  --color-indigo-100: #2e2a6e;
+  --color-indigo-200: #3730a3;
+  --color-indigo-600: #818cf8;
+  --color-indigo-700: #a5b4fc;
+
+  --color-amber-50: #451a03;
+  --color-amber-100: #5c2605;
+  --color-amber-200: #92400e;
+  --color-amber-300: #b45309;
+  --color-amber-500: #fbbf24;
+  --color-amber-600: #fbbf24;
+  --color-amber-800: #fcd34d;
+  --color-amber-900: #fde68a;
+
+  --color-emerald-50: #022c22;
+  --color-emerald-100: #064e3b;
+  --color-emerald-200: #065f46;
+  --color-emerald-700: #6ee7b7;
+  --color-emerald-800: #a7f3d0;
+  --color-emerald-900: #d1fae5;
+
+  --color-rose-50: #4c0519;
+  --color-rose-100: #6b0f2a;
+  --color-rose-200: #9f1239;
+  --color-rose-600: #fb7185;
+  --color-rose-700: #fda4af;
+  --color-rose-900: #ffe4e6;
+
+  --color-sky-50: #082f49;
+  --color-sky-100: #0c4a6e;
+  --color-sky-200: #075985;
+  --color-sky-700: #7dd3fc;
+  --color-sky-800: #bae6fd;
+
+  --color-violet-50: #2e1065;
+  --color-violet-100: #4c1d95;
+  --color-violet-200: #5b21b6;
+  --color-violet-700: #c4b5fd;
+
+  --color-cyan-50: #083344;
+  --color-cyan-100: #164e63;
+  --color-cyan-200: #155e75;
+  --color-cyan-700: #67e8f9;
+
+  --color-accent: #4f46e5;
+  --color-accent-hover: #4338ca;
+  --color-accent-off: #312e81;
+  --color-danger: #e11d48;
+  --color-danger-hover: #be123c;
+  --color-danger-off: #4c0519;
+  --color-on-solid: #ffffff;
+  --color-scrim: rgb(0 0 0 / 0.6);
+
+  --g-bg: #0b0b0e;
+  --g-edge: #3f3f46;
+  --g-edge-lit: #a1a1aa;
+  --g-outline: #18181b;
+  --g-label: #d4d4d8;
+  --g-core-ring: #e4e4e7;
+  --g-btn: #18181b;
+  --g-btn-hover: #27272a;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  background: var(--color-page);
+  color: var(--color-stone-900, #1c1917);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
