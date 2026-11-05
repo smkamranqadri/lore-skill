@@ -34,9 +34,9 @@ Scope is coding agents only. The 2.0 direction is in `../intent/plan-2026-10-22-
   per-project Tartib status space belongs to them, not to lore.
 - Each of the three works alone; none requires another.
 
-## Install (checked 2026-10-25)
+## Install (checked 2026-11-05)
 
-- The skill installs at `~/.agents/skills/lore` (2.0.0-p3), linked for Claude at
+- The skill installs at `~/.agents/skills/lore` (2.0.0-p4a.1), linked for Claude at
   `~/.claude/skills/lore` and `~/.claude/commands/lore` (commands sync, learn-taste, retro). The
   installer leaves a correct link alone and keeps and reports anything else at the path.
 - 1.x store `~/.agents/memory` with the Tartib hub; 2.0 store `~/.agents/lore` (git) with the
@@ -51,7 +51,5 @@ Scope is coding agents only. The 2.0 direction is in `../intent/plan-2026-10-22-
   `TMPDIR` is long (about 130 characters, such as an agent's session scratchpad): the index-budget
   tests print the store path into the index. They pass from a short path; run proof runs with
   `TMPDIR=/home/mkamran/.cache/<dir>` (checked on base `1f6dff3`, 2026-10-24).
-- The 1.x `lore-sync.timer` (`OnBootSec=2min`, `OnUnitActiveSec=6h`) never fires after a login
-  more than 2 minutes after boot: `OnBootSec` counts from kernel boot and has passed when the user
-  manager starts the timer, and `OnUnitActiveSec` needs a run of the service in this boot
-  (journal and `systemctl show`, checked 2026-10-25). `OnStartupSec` counts from the user manager. Fixed in 2.0.0-p4a.1.
+- `OnBootSec` never fires in a systemd user timer after a late login (it counts from kernel boot);
+  `lore-sync.timer` uses `OnStartupSec=2min` since 2.0.0-p4a.1 and `sync-timer check` flags the old unit.
