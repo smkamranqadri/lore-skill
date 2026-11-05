@@ -1,0 +1,35 @@
+{
+ "last_read": {
+  "m-0badf00d": "2026-09-20"
+ },
+ "read_when": "you write or review code",
+ "reads": {
+  "m-0badf00d": 3
+ },
+ "rules": {
+  "47dc367f": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Make an on/off setting a toggle switch, never a checkbox.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "cbcdc7e8": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Prefer plain, explicit code over clever one-liners, and skip comments that only restate the code.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  }
+ }
+}

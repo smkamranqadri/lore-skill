@@ -1,0 +1,34 @@
+{
+ "last_read": {
+  "m-0badf00d": "2026-09-20"
+ },
+ "reads": {
+  "m-0badf00d": 3
+ },
+ "rules": {
+  "47c6d64e": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Harbourlight health checks time out after five seconds, so slow-starting apps loop in restart.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "9c43efd4": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "A Harbourlight restart drops every mounted volume that lacks the persist flag, including the upload folder.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  }
+ }
+}

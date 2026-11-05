@@ -1,0 +1,78 @@
+{
+ "last_read": {},
+ "reads": {},
+ "rules": {
+  "16f768a5": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Keep every reply short and direct, with the verdict first and the changes and the proof after it in bullets.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "245e44a3": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Answer a question before editing any files or running any command that changes the project in any way at all.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "4e094bd0": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Never print any part of a secret; check it by name or by length and pass it through an environment file.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "64fc6105": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Do exactly the scope I named, be complete inside it, and never extend it by yourself to anything else.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "76de3465": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Never write to production, or change a production server or database, without my explicit go-ahead first.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "9bc2ad9e": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Check the real state behind every claim, including the report of another agent, before repeating it as fact.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  }
+ }
+}

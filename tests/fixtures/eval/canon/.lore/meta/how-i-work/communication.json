@@ -1,0 +1,47 @@
+{
+ "last_read": {
+  "m-0badf00d": "2026-09-20"
+ },
+ "read_when": "you write a reply or a status report",
+ "reads": {
+  "m-0badf00d": 3
+ },
+ "rules": {
+  "529269cf": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Skip the preamble and cheerful filler in replies; start with the result.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "ae7b420c": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Keep replies short and direct: verdict first, then the changes and proof in a table or bullets.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "bc4d8496": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Interpret terse messages by intent, and when the intent is unclear, say what you assumed.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  }
+ }
+}

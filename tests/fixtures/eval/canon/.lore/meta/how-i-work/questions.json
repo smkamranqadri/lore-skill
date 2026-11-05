@@ -1,0 +1,65 @@
+{
+ "last_read": {
+  "m-0badf00d": "2026-09-20"
+ },
+ "read_when": "you are about to ask me something or to start a larger change",
+ "reads": {
+  "m-0badf00d": 3
+ },
+ "rules": {
+  "130544f2": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Do exactly the scope I named; be complete inside it and never extend it on your own.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "76b5ab29": {
+   "confidence": 0.9,
+   "contradictions": [
+    {
+     "flagged": "2026-09-15",
+     "with": "Batch all your open questions into a single message so I can answer them together."
+    }
+   ],
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Ask me one question at a time and wait for my answer before asking the next.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "a35b018d": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Batch all your open questions into a single message so I can answer them together.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "cf55ea43": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Plan the task in writing and wait for my yes before starting any change that touches more than three files.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  }
+ }
+}

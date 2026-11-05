@@ -1,0 +1,323 @@
+{
+ "last_read": {
+  "m-0badf00d": "2026-09-20"
+ },
+ "read_when": "you deploy to Tarnwell or change its settings",
+ "reads": {
+  "m-0badf00d": 3
+ },
+ "rules": {
+  "02ac912c": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Tarnwell stores secrets per app, and a copied app starts with none of them set.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "071af9ee": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "A Tarnwell deploy keeps the previous image for one day only, so a late rollback needs a rebuild.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "0e1efbc5": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Tarnwell treats a trailing slash in a domain entry as a different domain from the same name without one.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "0ed90efb": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Tarnwell scales to zero after an hour idle on the small plan, which makes the first request slow.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "167de09d": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Tarnwell build logs are cut at two megabytes, which hides the real error in a noisy install step.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "1dd7e3d2": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Tarnwell environment values with a dollar sign are expanded at start, so escape them in the template.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "26f23934": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Tarnwell reports a deploy as finished once the container starts, before the health probe has passed.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "46ba8090": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Tarnwell cron entries run in UTC whatever the host clock says, so convert local times first.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "4e3f9c56": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Tarnwell reads the template when you upload it, so edits made afterwards never reach the running app.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "4ef9f2da": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Tarnwell caps an upload at fifty megabytes; larger bundles need the registry route instead.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "57db4043": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Tarnwell mounts persistent folders read-only during a rollback, so an app that writes there crashes.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "668b3d16": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Tarnwell shows the last deploy time in local time but stores it in UTC, which confuses audits.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "6ddd6171": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Tarnwell lets two apps claim one domain and serves whichever deployed last.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "70c2ed39": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Tarnwell keeps one build running per project, so a second push waits instead of replacing the first.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "746f7533": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Tarnwell rejects an app name with capital letters, but the error it prints blames the template.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "77e8dced": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Tarnwell templates cannot include another template, so shared settings must be pasted into each one.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "80b217f0": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Tarnwell injects the port through an environment variable; an app that hard-codes a port never answers.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "96895088": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Tarnwell health probes use the root path, so a login redirect there marks a healthy app as down.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "97655ba1": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Tarnwell resolves an internal service name only inside the same project, never across projects.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "9c1cae54": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Tarnwell disk quotas count old images, so a full disk usually means stale builds, not data.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "a24b67b2": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Tarnwell rotates its logs at midnight UTC, so a deploy near midnight splits its output across two files.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "b19301f8": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Tarnwell backups skip folders that are not marked persistent, even when the app writes there daily.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "c727d6b4": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Tarnwell restarts every app on a plan change, including apps that were stopped on purpose.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "ccdcd4bd": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Tarnwell ignores a dotfile named in the template unless the build step copies it explicitly.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "ebd7dd2a": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Tarnwell webhooks retry three times and then give up silently, so check the delivery log by hand.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "f07132e8": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Tarnwell shows memory in mebibytes on the dashboard but takes megabytes in the template.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  }
+ }
+}

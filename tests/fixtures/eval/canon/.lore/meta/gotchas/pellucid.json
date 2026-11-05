@@ -1,0 +1,35 @@
+{
+ "last_read": {
+  "m-0badf00d": "2026-09-20"
+ },
+ "read_when": "you work in a Pellucid design file",
+ "reads": {
+  "m-0badf00d": 3
+ },
+ "rules": {
+  "42d823ea": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Pellucid exports render fonts from the host machine, so check each export on screen before sending it.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "612c9b3d": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Pellucid instance updates can erase local overrides; export the overrides before updating a component.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  }
+ }
+}
