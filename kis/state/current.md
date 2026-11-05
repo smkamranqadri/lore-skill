@@ -4,10 +4,10 @@
   `https://github.com/smkamranqadri/lore-skill` (public). Installed live: lore 2.0.0-p4a.1 beside
   1.x (2026-11-05, `update` and `check` exit 0). 1.0.0 is the last public release; `v1.1.0` is
   tagged locally at `e52b56e`, not released.
-- Task: P4a and 2.0.0-p4a.1 done (proof in the plan's Status). Next: P5 (eval and switch); its
-  planning started 2026-10-29 and paused when the owner asked for a Hindsight comparison (answered
-  in chat: keep lore). Open for the owner: whether P5 takes three Hindsight-inspired items
-  (measure corrections, backfill old transcripts, keep the last good index) and how P5 is split.
+- Task: P5 planned 2026-11-05 (see the 2.0 plan's "P5 detail"): P5a Eval, P5b Switch, P5c File and
+  release, a gate after each. Next: P5a, starting with the fixture in `tests/fixtures/eval/` committed
+  before any real run; the owner has not yet told the orch to start building. Of the Hindsight-inspired
+  items only "keep the last good index" is in (P5b); the other two are post-2.0.
 - Command: `tests/run.sh` from a short `TMPDIR` (see Knowledge, Test facts), about five minutes;
   `./bootstrap.sh check --source .`; worker proof `.orch/lore-2.0/verify.sh build|repro|clean`; `lore ui` serves the UI on 127.0.0.1:3870.
 - Blocker: none.
