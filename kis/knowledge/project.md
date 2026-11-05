@@ -54,4 +54,4 @@ Scope is coding agents only. The 2.0 direction is in `../intent/plan-2026-10-22-
 - The 1.x `lore-sync.timer` (`OnBootSec=2min`, `OnUnitActiveSec=6h`) never fires after a login
   more than 2 minutes after boot: `OnBootSec` counts from kernel boot and has passed when the user
   manager starts the timer, and `OnUnitActiveSec` needs a run of the service in this boot
-  (journal and `systemctl show`, checked 2026-10-25). `OnStartupSec` counts from the user manager.
+  (journal and `systemctl show`, checked 2026-10-25). `OnStartupSec` counts from the user manager. Fixed in 2.0.0-p4a.1.
