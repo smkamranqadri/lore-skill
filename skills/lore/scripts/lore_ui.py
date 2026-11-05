@@ -312,8 +312,16 @@ def _known_item(store, item_id):
         raise ApiError("not_found", f"no inbox item {lore_master._safe(item_id)}")
 
 
+def _begin(store):
+    try:
+        lore_store.begin(store)   # before the item is looked up: recovery changes what the store holds
+    except lore.LoreError as err:
+        raise ApiError("refused", str(err))
+
+
 def accept(store, body):
     item_id = _field(body, "id")
+    _begin(store)
     _known_item(store, item_id)
     try:
         res = lore_hub.inbox_accept(store, item_id)
@@ -324,6 +332,7 @@ def accept(store, body):
 
 def reject(store, body):
     item_id = _field(body, "id")
+    _begin(store)
     _known_item(store, item_id)
     try:
         res = lore_hub.inbox_reject(store, item_id)

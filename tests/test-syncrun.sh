@@ -20,7 +20,7 @@ last() { tail -n 1 "$S/sync-log.jsonl"; }
 # Codex's token line.
 cat > "$tmp/fake-ok.sh" <<FAKE
 #!/usr/bin/env bash
-d="\$(mktemp -d)"
+d="\$(mktemp -d -p "$tmp")"
 python3 "$lore" --store "$S" export --out "\$d" >/dev/null
 echo '{}' > "\$d.seen"
 python3 "$lore" --store "$S" sync-done --pushed "\$d" --remote-seen "\$d.seen" >/dev/null
@@ -124,7 +124,17 @@ chmod +x "$tmp/bin/systemctl"
 PATH="$tmp/bin:$PATH" ok L sync-timer install --every 45min
 u="$HOME/.config/systemd/user"
 grep -q '^OnUnitActiveSec=45min$' "$u/lore-sync.timer" || fail "timer interval missing"
-grep -q '^OnBootSec=2min$' "$u/lore-sync.timer" || fail "boot catch-up missing"
+grep -qx 'OnStartupSec=2min' "$u/lore-sync.timer" || fail "startup catch-up missing"
+! grep -q '^OnBootSec=' "$u/lore-sync.timer" || fail "the timer still counts from kernel boot"
+grep -qx 'Persistent=true' "$u/lore-sync.timer" || fail "Persistent=true missing"
+PATH="$tmp/bin:$PATH" ok L sync-timer check
+grep -qxF "$u/lore-sync.timer: present" "$log" || fail "a current timer is not reported present"
+# A unit from before this fix (OnBootSec) is reported out of date, and install rewrites it.
+sed -i 's/^OnStartupSec=/OnBootSec=/' "$u/lore-sync.timer"
+PATH="$tmp/bin:$PATH" ok L sync-timer check
+grep -qxF "$u/lore-sync.timer: out of date (OnBootSec never fires after a late login; run sync-timer install)" "$log" || fail "an OnBootSec timer is not reported out of date"
+PATH="$tmp/bin:$PATH" ok L sync-timer install --every 45min
+grep -qx 'OnStartupSec=2min' "$u/lore-sync.timer" && ! grep -q '^OnBootSec=' "$u/lore-sync.timer" || fail "install did not rewrite the old timer"
 grep -q "^ExecStart=.* $repo_root/skills/lore/scripts/lore.py --store $S sync-run$" "$u/lore-sync.service" || fail "service command wrong"
 grep -q 'enable --user\|--user enable --now lore-sync.timer' "$tmp/systemctl.log" || fail "timer was not enabled"
 if PATH="$tmp/bin:$PATH" L sync-timer install --every soon >"$log" 2>&1; then fail "a bad interval was accepted"; fi

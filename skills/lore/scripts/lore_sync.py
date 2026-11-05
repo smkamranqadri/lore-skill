@@ -457,7 +457,12 @@ def cmd_sync_timer(store, args):
     script = os.path.join(lore.SKILL_DIR, "scripts", "lore.py")
     if args.action == "check":
         print(f"{svc}: {'present' if os.path.exists(svc) else 'missing'}")
-        print(f"{tmr}: {'present' if os.path.exists(tmr) else 'missing'}")
+        state = "missing"
+        if os.path.exists(tmr):
+            with open(tmr) as f:
+                old = any(l.startswith("OnBootSec=") for l in f.read().splitlines())
+            state = "out of date (OnBootSec never fires after a late login; run sync-timer install)" if old else "present"
+        print(f"{tmr}: {state}")
         return
     sysctl = shutil.which("systemctl")
     if args.action == "remove":
@@ -480,7 +485,7 @@ def cmd_sync_timer(store, args):
                 f"ExecStart={sys.executable} {script} --store {store.root} sync-run\n")
     with open(tmr, "w") as f:
         f.write("[Unit]\nDescription=lore memory sync timer\n\n"
-                f"[Timer]\nOnBootSec=2min\nOnUnitActiveSec={args.every}\nPersistent=true\n\n"
+                f"[Timer]\nOnStartupSec=2min\nOnUnitActiveSec={args.every}\nPersistent=true\n\n"
                 "[Install]\nWantedBy=timers.target\n")
     if sysctl:
         subprocess.run([sysctl, "--user", "daemon-reload"], check=True)

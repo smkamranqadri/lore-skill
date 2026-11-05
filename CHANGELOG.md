@@ -1,5 +1,50 @@
 # Changelog
 
+## 2.0.0-p4a.1 (unreleased)
+
+Four small fixes after P4a. 1.x behaviour is unchanged except the timer's start line.
+
+- The hub no longer loses a merge's own work. The fetch-rebase ran `git rebase`, which drops merge
+  commits, so a file only a local merge commit added was lost locally and on the hub while the
+  push still reported success (the "Known limit" in 2.0.0-p4a below: fixed). lore does not replay
+  merges: when the local commits to rebase onto the hub include a merge, nothing is rebased, the
+  store stays exactly as it was, the push counts as failed and one line names the merge and the
+  manual fix: `hub: push FAILED (a local merge <sha7> "<subject>" cannot be rebased onto the hub;
+  lore does not replay merges. Merge the hub in yourself, e.g. git -C <store> merge <hub ref>,
+  then the next run pushes)`. Merging keeps what only the merge commit added, and the hub is then
+  in the store's history, so the next push is a fast-forward. Each run refuses again until the
+  owner acts. When the hub has nothing new there is nothing to rebase and the merge pushes as it
+  is. Linear history behaves as before; Canon's landing gets the same refusal.
+- lore never completes the owner's unfinished git operation. The manual merge above can stop on a
+  conflict; the next session end then ran `tidy` and `commit`, which staged the conflict markers,
+  finished the merge and let the next push publish them. Every writer that stages, commits or
+  rewrites a tracked file (`commit`, `tidy`, recording reads, a Loremaster or Inbox batch, Canon, the
+  hub's fetch-rebase, attaching a hub) now first checks for a merge, cherry-pick or revert in
+  progress (a multi-pick one also while `.git/sequencer` holds its picks, which is all git keeps
+  after the owner has staged a first conflict), a rebase lore did not start, or unmerged index entries. It touches nothing (HEAD, index
+  and work tree stay as they are) and says `store: an unfinished git merge is in progress in <store>;
+  resolve and commit it, or run git -C <store> merge --abort, then the next run continues`; session
+  end logs it, reads and pushes nothing, and counts no failed push. A rebase lore itself started
+  is told apart from the owner's by instance, not by its inputs: lore writes a random token in
+  `.git/lore-rebase` and, through the sequence editor git runs once its rebase directory exists,
+  the same token in `rebase-merge/lore-token`. `git rebase --abort` removes that directory, so a
+  rebase the owner starts afterwards, even onto the same target from the same HEAD, has no token
+  and is the owner's; anything ambiguous refuses. Recovery of a rebase a hard kill left behind
+  happens once, where a writer begins and before it reads the store, looks up an Inbox item or
+  builds any content (session end, `store commit|status|index`, `hub set|create`, Loremaster
+  batches, `lore inbox accept|reject` and the UI's routes, Canon), so what it writes is built from
+  the restored branch and an unreplayed local rule survives. The check at the write itself only
+  refuses and writes nothing. A stale mark is cleared when lore's rebase ends and dropped when it
+  matches nothing.
+- The 1.x timer fires after a late login. `sync-timer install` wrote `OnBootSec=2min`, which counts
+  from kernel boot, so a user manager started later never fired it. It now writes
+  `OnStartupSec=2min` (counted from the user manager's start); `OnUnitActiveSec` and
+  `Persistent=true` are as before. `sync-timer check` reports a unit that still has `OnBootSec` as
+  out of date, and `sync-timer install` rewrites it.
+- `tests/test-sync.sh` made its `pull` and `push` folders outside its temp folder, so its trap never
+  removed them; they are made under it now, as is the fake agent's export folder in
+  `tests/test-syncrun.sh`.
+
 ## 2.0.0-p4a (unreleased)
 
 lore 2.0, phase 4a: the UI for 2.0.0 (Memory, Graph, Inbox and a read-only Changes) and its local

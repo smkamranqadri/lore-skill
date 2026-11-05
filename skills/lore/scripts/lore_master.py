@@ -587,6 +587,7 @@ def _commit_writes(store, writes, subject):
     """Write {relpath: text, or None to delete}, tidy and commit it as one change. On any failure
     every file is put back as it was (the sidecars tidy touched too) and the error is raised.
     Returns (sha or None, changed)."""
+    lore_store.settled(store)
     links = [p for p in writes if symlinked(store, p)]
     if links:   # checked again here, before any write: no write or rollback follows a symlink
         raise lore.LoreError(f"refused to write through a symlink: {', '.join(_safe(p) for p in sorted(links))}")
@@ -657,6 +658,7 @@ def apply(store, ops, *, source, items=None, allowed=None, subject=None, queue=T
     "pending" holds the (kind, payload) items and "moved" the rule moves, for a caller whose
     commits land elsewhere (Canon's private checkout) to queue and relocate once they land.
     Raises OpsError, writing nothing, when the batch is not valid."""
+    lore_store.begin(store)   # before the store is read: recovery would change what the batch is built from
     m, errs = _run(store, ops, items, allowed)
     if errs:
         raise OpsError(errs)
@@ -1026,6 +1028,7 @@ def _accept_layout(store, item):
 def inbox_accept(store, item_id):
     """Apply one Inbox item as its own commit: a retirement moves the rule to retired/, a layout proposal
     becomes the layout, a hand edit is kept as a rule. Returns {"commit", "changed", "kind"}."""
+    lore_store.begin(store)
     item = _item(store, item_id)
     kind = item["kind"]
     if kind == "retire":
@@ -1048,6 +1051,7 @@ def inbox_reject(store, item_id):
     """Drop one Inbox item. A rejected hand edit is taken out of its file, as its own commit; a
     rejected retirement is remembered (see `rejected`) so it is not proposed again on the same
     evidence; every other kind leaves the store as it is."""
+    lore_store.begin(store)
     item = _item(store, item_id)
     if item["kind"] == "hand-edit":
         m, rel, eid, _ = _rule_of(store, item)

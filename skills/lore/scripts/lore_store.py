@@ -111,14 +111,15 @@ def clean_err(text):
     return lines[-1] if lines else "no output"
 
 
-def git(root, *args, check=True, timeout=None, stdin=None, raw=False, index=None):
+def git(root, *args, check=True, timeout=None, stdin=None, raw=False, index=None, extra_env=None):
     """Run git headless: no terminal prompt, no askpass, ssh in batch mode, no signing, no hooks,
     no editor, no controlling terminal, and a timeout that kills the whole process group.
     `stdin` is fed to git; with `raw` the output is bytes; `index` is an index file used instead
-    of .git/index."""
+    of .git/index; `extra_env` adds or replaces variables."""
     env = dict(os.environ, GIT_TERMINAL_PROMPT="0", GIT_SSH_COMMAND="ssh -o BatchMode=yes",
                GIT_EDITOR="true", GIT_SEQUENCE_EDITOR="true", GIT_ASKPASS="", SSH_ASKPASS="",
                GCM_INTERACTIVE="never")
+    env.update(extra_env or {})
     if index:
         env["GIT_INDEX_FILE"] = index
     t = timeout or git_timeout()
@@ -149,6 +150,7 @@ class Store2:
         self.root = root
         self.day = day or dt.date.today()
         self.staging = None   # an index file lore's reads of staged blobs use instead of .git/index
+        self.rebase_token = None   # set by mark_rebase: the rebase lore starts next carries it
 
     def path(self, rel):
         p = os.path.normpath(os.path.join(self.root, rel))
@@ -167,6 +169,11 @@ class Store2:
             raise lore.LoreError(f"no lore 2.0 store at {self.root}; run `lore store init`")
 
     def git(self, *args, **kw):
+        if self.rebase_token and args[:1] == ("rebase",) and not REBASE_ENDS.intersection(args):
+            # lore's own rebase: the sequence editor git runs once the rebase directory exists copies
+            # the token into it; the rebase is otherwise the one a plain `git rebase` would be
+            args = ("rebase", "-i", "--no-autosquash") + args[1:]
+            kw["extra_env"] = {"GIT_SEQUENCE_EDITOR": TOKEN_EDITOR, "LORE_REBASE_TOKEN": self.rebase_token}
         return git(self.root, *args, **kw)
 
     def write(self, rel, content):
@@ -423,6 +430,7 @@ def hand_edits(store):
 def record_reads(store, counts, machine):
     """Add one session's read counts ({relpath: n}) to the sidecars, under this machine only.
     Paths that are not rule files of this store are ignored. Returns the paths changed."""
+    begin(store)
     files = set(store.rule_files())
     todo = [(rel, n) for rel, n in sorted(counts.items()) if rel in files and isinstance(n, int) and n > 0]
     metas = {rel: load_meta(store, rel) for rel, _ in todo}   # every sidecar read before any is written
@@ -582,7 +590,7 @@ def describe(changes):
 def commit(store, subject=None):
     """Stage everything, refuse a secret, commit one change. Returns (sha, subject) or None.
     `subject` may be a function of the staged (status, path) pairs that returns one or None."""
-    recover(store)
+    settled(store)
     store.git("add", "-A")
     changes = staged(store)
     if not changes:
@@ -603,18 +611,112 @@ def rebase_active(store):
     return any(os.path.exists(os.path.join(store.root, ".git", d)) for d in ("rebase-merge", "rebase-apply"))
 
 
+REBASE_MARK = "lore-rebase"   # in .git while lore's own rebase runs; holds the token of that rebase
+REBASE_TOKEN = "lore-token"   # the same token, inside git's rebase directory, which an abort removes
+REBASE_ENDS = {"--abort", "--continue", "--skip", "--quit", "--edit-todo", "--show-current-patch"}
+# git runs this once the rebase directory exists and before it picks anything; $1 is the todo file in it
+TOKEN_EDITOR = 'sh -c \'printf "%s" "$LORE_REBASE_TOKEN" > "${1%/*}/' + REBASE_TOKEN + '"\' lore-token'
+
+
+def _mark_path(store):
+    return os.path.join(store.root, ".git", REBASE_MARK)
+
+
+def mark_rebase(store):
+    """Record lore's rebase before it starts: a fresh token in the mark, and the same token for the
+    rebase that `store.git` starts next, which writes it into git's rebase directory. The mark is
+    written whole or not at all, so a kill never leaves a half mark that could pass for a match."""
+    token = secrets.token_hex(16)
+    tmp = _mark_path(store) + ".tmp"
+    with open(tmp, "w") as f:
+        f.write(token + "\n")
+    os.replace(tmp, _mark_path(store))
+    store.rebase_token = token
+
+
+def unmark_rebase(store):
+    store.rebase_token = None
+    with contextlib.suppress(FileNotFoundError):
+        os.unlink(_mark_path(store))
+
+
+def _lore_rebase_active(store):
+    """True when the rebase in progress is the instance the mark describes: the token inside git's
+    rebase directory equals the mark's. Aborting a rebase removes that directory, so a rebase the
+    owner starts afterwards (even with the same target and starting HEAD) has no token, and a stale,
+    empty or unreadable mark proves nothing."""
+    try:
+        with open(_mark_path(store)) as f:
+            want = f.read().strip()
+        with open(os.path.join(store.root, ".git", "rebase-merge", REBASE_TOKEN)) as f:
+            got = f.read().strip()
+    except OSError:
+        return False
+    return got == want
+
+
 RECOVER_TIMEOUT = 60   # an abort is local work; it gets this long even when remote calls get less
 
 
 def recover(store, killed=False):
-    """A rebase left behind by a run that was killed or timed out is aborted, which puts the
-    local commits back as they were; the next sync replays them. With `killed`, lore itself just
-    killed the git that held the index lock, so that lock is stale and removed first."""
+    """A rebase left behind by a run of lore's that was killed or timed out is aborted, which puts
+    the local commits back as they were; the next sync replays them. With `killed`, lore itself
+    just killed the git that held the index lock, so that lock is stale and removed first. Only a
+    rebase the mark proves is lore's is aborted; one that is not (the owner's, begun after a stale
+    mark was left) is left alone, the mark dropped, and `settled` refuses it. Called where a writer
+    begins (`begin`), before it reads anything, never once it holds content prepared from the store."""
     lock = os.path.join(store.root, ".git", "index.lock")
     if killed and os.path.exists(lock):
         os.unlink(lock)
+    if os.path.exists(_mark_path(store)):
+        if _lore_rebase_active(store):
+            store.git("rebase", "--abort", check=False, timeout=max(git_timeout(), RECOVER_TIMEOUT))
+        if not rebase_active(store) or not _lore_rebase_active(store):
+            unmark_rebase(store)
+
+
+def unfinished(store):
+    """The owner's git operation left half done, as (what it is, how to abort it), or None: a
+    merge, cherry-pick or revert in progress (a multi-pick one also by its sequencer todo), a
+    rebase lore did not start, or unmerged index entries. `settled` recovers lore's own rebase first, so one still active here is not lore's."""
+    for head, kind in (("MERGE_HEAD", "merge"), ("CHERRY_PICK_HEAD", "cherry-pick"), ("REVERT_HEAD", "revert")):
+        if os.path.exists(os.path.join(store.root, ".git", head)):
+            return kind
+    try:   # a multi-pick cherry-pick or revert keeps its remaining picks here, with no CHERRY_PICK_HEAD between picks
+        with open(os.path.join(store.root, ".git", "sequencer", "todo")) as f:
+            todo = f.read().split()
+        if todo:
+            return "revert" if todo[0] == "revert" else "cherry-pick"
+    except OSError:
+        pass
     if rebase_active(store):
-        store.git("rebase", "--abort", check=False, timeout=max(git_timeout(), RECOVER_TIMEOUT))
+        return "rebase"
+    if store.git("ls-files", "-u", check=False)[1].strip():
+        return "conflict"
+    return None
+
+
+def settled(store):
+    """Raises, touching nothing, when the owner has a git operation in progress: staging or
+    committing now would complete it with whatever the work tree holds, conflict markers included.
+    Every writer that stages, commits or rewrites a tracked file calls this before it writes. It
+    only refuses: a rebase lore left behind is ended by `begin`, at the writer's entry, because
+    ending it here would change the checkout under content already prepared from it."""
+    kind = unfinished(store)
+    if kind == "conflict":
+        raise lore.LoreError(f"store: unmerged paths are in {store.root}; resolve them and commit, "
+                             f"then the next run continues")
+    if kind:
+        raise lore.LoreError(f"store: an unfinished git {kind} is in progress in {store.root}; resolve and commit it, "
+                             f"or run git -C {shlex.quote(store.root)} {kind} --abort, then the next run continues")
+
+
+def begin(store):
+    """What every writer calls first, before it reads the store, looks up an item or builds any
+    content: ends a rebase lore itself left behind (`recover`), then refuses the owner's unfinished
+    operation (`settled`). The caller holds the store lock."""
+    recover(store)
+    settled(store)
 
 
 def upgrade(store):
@@ -630,7 +732,7 @@ def tidy(store):
     """Bring .gitattributes up to date, reconcile the sidecars and rebuild the index; the step
     before every commit. An index over the budget is reported, not written, and does not stop the
     commit."""
-    recover(store)
+    settled(store)
     upgrade(store)
     rep = reconcile(store)
     try:

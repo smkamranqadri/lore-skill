@@ -520,6 +520,11 @@ def step(store, trigger, force=False):
     logged and backs off like a failed sync (`force` overrides the backoff, never the gates);
     commits the owner's side wins over are dropped and logged, not a failure. Returns True when
     it made a commit (so the caller pushes)."""
+    try:
+        lore_store.begin(store)   # before anything is read; no model call whose commits could not land
+    except lore.LoreError as err:
+        log(f"store-run: canon skipped, {err} ({trigger})")
+        return False
     recover(store, trigger)
     lint = lint_module()
     if lint is None:
@@ -603,6 +608,7 @@ def cmd_canon(_, args):
     store.require()
     lint = _lint_or_fail()
     with store.locked():
+        lore_store.begin(store)
         h = held(store, lint.lint(store))
         findings = h["kept"]
         for line in held_lines(h):

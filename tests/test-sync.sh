@@ -27,7 +27,7 @@ entries() {   # every entry, normalised, in one sorted list: what "the same memo
 # The agent's part: pull every hub file, merge, export, push what changed, record the sync.
 sync_via() {
   local store="$1" day="$2" pull push
-  pull="$(mktemp -d)"; push="$(mktemp -d)"
+  pull="$(mktemp -d -p "$tmp")"; push="$(mktemp -d -p "$tmp")"
   cp -a "$hub/." "$pull/" 2>/dev/null || true
   if [[ -n "$(ls -A "$pull")" ]]; then python3 "$lore" --store "$store" --today "$day" merge --remote "$pull" >"$log" 2>&1 || fail "merge failed"; fi
   python3 "$lore" --store "$store" --today "$day" export --out "$push" >"$log" 2>&1 || fail "export failed"
@@ -102,7 +102,7 @@ sync_via "$A" 2026-10-08; sync_via "$B" 2026-10-08
 grep -q 'placeholder' "$B/candidates.md" "$B/ui.md" || fail "a rule seen again after its tombstone did not come back"
 
 # 7. The pushed hashes are recorded, not the live ones: a change made during a sync is pushed later.
-pull="$(mktemp -d)"; push="$(mktemp -d)"
+pull="$(mktemp -d -p "$tmp")"; push="$(mktemp -d -p "$tmp")"
 ok LA --today 2026-10-09 export --out "$push"
 ok LA --today 2026-10-09 add --cat git --text "Never force push to main"   # lands mid-sync
 echo '{}' > "$tmp/seen.json"

@@ -1,7 +1,9 @@
 """Case runner for tests/test-reads.sh: shell, Codex JS, malformed-record and symlink cases.
 Usage: run_cases.py <scripts dir> <fixtures dir> <store root>. Exits 1 and prints each miss."""
+import atexit
 import json
 import os
+import shutil
 import sys
 import tempfile
 
@@ -10,6 +12,7 @@ import lore_reads
 
 fx, root = sys.argv[2], sys.argv[3]
 tmp = tempfile.mkdtemp()
+atexit.register(shutil.rmtree, tmp, ignore_errors=True)
 bad = []
 count = 0
 

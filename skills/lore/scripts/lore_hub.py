@@ -93,7 +93,7 @@ def integrate(store, remote, subject):
     """Fetch `remote` and replay the local commits onto its branch with lore's merge policy, then
     tidy and commit what tidying changed (as `subject`). The hub's sync, and Canon's landing from
     its private checkout. Raises LoreError; leaves no rebase behind."""
-    lore_store.recover(store)
+    lore_store.begin(store)
     store.git("fetch", "-q", remote)
     ref = f"refs/remotes/{remote}/{lore_store.BRANCH}"
     if _has_ref(store, ref):
@@ -105,13 +105,34 @@ def integrate(store, remote, subject):
 REBASE_STEPS = 100
 
 
+def refuse_local_merge(store, onto):
+    """A plain rebase drops a merge commit, and with it what the merge itself added, so lore does
+    not rebase across one: raises, naming the merge and the manual fix (merging the hub in, after
+    which the hub is in HEAD and the next push is a fast-forward), before anything is touched."""
+    _, out, _ = store.git("rev-list", "--merges", "--reverse", "--format=%h %s", f"{onto}..HEAD", check=False)
+    found = [l for l in out.splitlines() if not l.startswith("commit ")]
+    if found:
+        short, _, subject = found[0].partition(" ")
+        ref = onto.replace("refs/remotes/", "", 1)
+        raise GitError(f'a local merge {short} "{lore.redact(subject).strip()}" cannot be rebased onto the hub; '
+                       f"lore does not replay merges. Merge the hub in yourself, e.g. "
+                       f"git -C {shlex.quote(store.root)} merge {ref}, then the next run pushes")
+
+
 def rebase(store, onto):
     """Replay local commits onto the hub, settling each stop with lore's merge policy. On any
-    failure, a timeout included, the rebase is aborted so the local commits stay as they were."""
+    failure, a timeout included, the rebase is aborted so the local commits stay as they were.
+    A local merge is refused, not replayed (`refuse_local_merge`). When the hub has nothing new
+    (`onto` is already in HEAD) there is nothing to replay: a rebase would only flatten merges."""
+    if store.git("merge-base", "--is-ancestor", onto, "HEAD", check=False)[0] == 0:
+        return
+    refuse_local_merge(store, onto)
+    lore_store.mark_rebase(store)   # lore's to abort while it runs, unlike the owner's; cleared the moment it ends
     try:
         rc, _, err = store.git("rebase", "-q", onto, check=False)
         for _ in range(REBASE_STEPS):
             if rc == 0:
+                lore_store.unmark_rebase(store)
                 return
             if not lore_store.rebase_active(store):
                 break
@@ -197,6 +218,7 @@ def visibility(url):
 def set_hub(store, url):
     """Attach a hub: refuse a public GitHub repo, then one test push. On failure, nothing changes."""
     store.require()
+    lore_store.begin(store)
     if not url or url.startswith("-") or any(c.isspace() for c in url):
         raise lore.LoreError("give the hub as one git URL")
     vis, warn = visibility(url)
@@ -224,6 +246,7 @@ def set_hub(store, url):
 
 def create_hub(store, name, yes):
     store.require()
+    lore_store.begin(store)
     if not gh_bin():
         raise lore.LoreError("gh is not installed; create a private repository yourself and run `lore hub set <url>`")
     if not re.fullmatch(r"[A-Za-z0-9_.-]{1,100}(/[A-Za-z0-9_.-]{1,100})?", name):
@@ -313,7 +336,11 @@ def store_run(store, trigger, force=False):
             log(f"store-run: busy, another run is in progress ({trigger})")
             return
         try:
-            lore_store.recover(store)
+            lore_store.begin(store)
+        except lore.LoreError as err:   # the owner's unfinished git operation: nothing is read, written or pushed
+            log(f"store-run: {err} ({trigger})")
+            return
+        try:
             counts, notes, ack = drain_queue(store)
             for n in notes:
                 log(f"store-run: {n}")
@@ -373,6 +400,7 @@ def cmd_store(_, args):
         return
     store.require()
     with store.locked():
+        lore_store.begin(store)
         if args.action == "index":
             rep = lore_store.write_index(store)
             print(f"INDEX.md {rep['tokens']} tokens (budget {rep['budget']})")
@@ -942,6 +970,7 @@ def inbox_reject(store, item_id):
     reject` and the UI both call this; the caller holds the store lock."""
     sys.modules.setdefault("lore", lore)
     import lore_master
+    lore_store.begin(store)   # before HEAD is read: recovery moves it, which is no commit of the reject's
     head = store.git("rev-parse", "HEAD")[1].strip()
     lore_master.inbox_reject(store, item_id)
     if store.git("rev-parse", "HEAD")[1].strip() == head:
