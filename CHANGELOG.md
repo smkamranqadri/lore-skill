@@ -1,5 +1,31 @@
 # Changelog
 
+## 2.0.0-p5a (unreleased)
+
+`lore eval loremaster|canon`: the plan's quality bars, measured by hand against the configured models
+before the filing session. Nothing 1.x changes, and no prompt or code of the Loremaster or Canon.
+
+- **A frozen fixture** in `tests/fixtures/eval/`: 60 fictional rules (per rule the expected top-level
+  folder and the ids whose rules belong linked, 20 pairs, 4 near-duplicate pairs and 2 contradicting
+  pairs) and a Canon store that seeds each lint gate once and nothing else. Its hash is pinned in
+  `tests/test-eval.sh`; a changed fixture fails that test and a change needs the owner.
+- **`lore eval loremaster`** queues the rules as `lore remember` does and files them through the real
+  Loremaster path in batches of 10, then reports the bars as fractions: rules in their expected folder
+  (at least 90%), no topic file over lint's oversized limit, expected pairs linked or in one file (at
+  least 80%). It writes `spot-check.md`: 15 rules chosen by a fixed sort, the original wording beside
+  the filed wording, a blank yes/no for the owner (15 of 15 must be yes). The tool never judges
+  meaning.
+- **`lore eval canon`** copies the Canon fixture into a temp store, runs Canon once through its model
+  as `lore canon --force` does, re-lints, and reports each gate `fixed`, `in Inbox` (a retirement
+  waiting for the owner) or `not fixed`.
+- Each run builds its own temp store with a local git identity and no hub, never the owner's store:
+  `--store2`, and a `--workdir` or `--out` that is or sits inside a store, are refused. `report.md` and
+  `report.json` (`--out`, default `./lore-eval-<role>-<UTC stamp>/`) carry the fixture's sha256, the
+  role's command line, wall time and an estimated token count (characters over four; the CLIs report
+  none). Exit 0: every bar the tool computes is met; 1: one is not; 2: the run failed or did not start
+  (a failing or unparseable reply is reported, never retried).
+- `SKILL.md` version `2.0.0-p5a`; `tests/test-ui-server.sh` pins that version in its summary check.
+
 ## 2.0.0-p4a.1 (unreleased)
 
 Four small fixes after P4a. 1.x behaviour is unchanged except the timer's start line.

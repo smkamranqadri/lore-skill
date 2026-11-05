@@ -969,6 +969,12 @@ def main(argv=None):
     cn.add_argument("--force", action="store_true", help="run even when lint's gates say it is not due")
     cl = sub.add_parser("canon-log", help="Canon's commits from git, one line each")
     cl.add_argument("--days", type=int, default=7)
+    ev = sub.add_parser("eval", help="measure the Loremaster or Canon against the frozen fixture, in a temp store")
+    ev.add_argument("role", choices=["loremaster", "canon"])
+    ev.add_argument("--out", help="report folder (default: ./lore-eval-<role>-<UTC stamp>/)")
+    ev.add_argument("--fixture", help="the eval fixture (default: tests/fixtures/eval of a source clone)")
+    ev.add_argument("--workdir", help="build the temp store here and keep it (a new or empty folder)")
+    ev.add_argument("--batch", type=int, help="loremaster: rules per model call (default 10)")
     ui = sub.add_parser("ui", help="serve the 2.0 store's UI on 127.0.0.1 (prints its URL with a token)")
     ui.add_argument("--port", type=int, help="this port only (default: the first free one from 3870 to 3889)")
     args = p.parse_args(argv)
@@ -999,7 +1005,11 @@ def main(argv=None):
         sys.modules.setdefault("lore", sys.modules[__name__])
         import lore_canon
         handlers.update({"lint": lore_canon.cmd_lint, "canon": lore_canon.cmd_canon, "canon-log": lore_canon.cmd_canon_log})
-    if args.cmd not in ("init", "setup", "store", "hub", "remember", "inbox", "check", "lint", "canon", "canon-log", "ui") \
+    if args.cmd == "eval":
+        sys.modules.setdefault("lore", sys.modules[__name__])
+        import lore_eval
+        handlers["eval"] = lore_eval.cmd_eval
+    if args.cmd not in ("init", "setup", "store", "hub", "remember", "inbox", "check", "lint", "canon", "canon-log", "ui", "eval") \
             and not os.path.isdir(store.root):
         print(f"Error: no store at {store.root}; run init first", file=sys.stderr)
         return 1

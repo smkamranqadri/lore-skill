@@ -30,7 +30,8 @@ skills/lore/           the lore package, and what ships
                        2.0, beside 1.x until P5: lore_store.py (git store, sidecars, index,
                        headless git, merge drivers), lore_hub.py (hub, session-end step, shim);
                        P3: lore_lint.py (lint gates), lore_canon.py (Canon runs, lint/canon commands);
-                       P4a: lore_ui.py (`lore ui`: the 127.0.0.1 server, its token and Host checks, the JSON API)
+                       P4a: lore_ui.py (`lore ui`: the 127.0.0.1 server, its token and Host checks, the JSON API);
+                       P5a: lore_eval.py (`lore eval loremaster|canon`: the plan's bars on a frozen fixture, in a temp store)
   ui/dist/             the built UI bundle `lore ui` serves (built from ui/, committed; never edited by hand)
 scripts/               install-skill.sh, run from a source clone only
 ui/                    the UI source (React, Vite, Tailwind, d3-force; Playwright tests), for contributors
@@ -39,7 +40,8 @@ docs/                  the pages the README links to, and its SVG images (never 
 .github/workflows/     CI: tests/run.sh on Linux
 tests/                 one suite per area (store, delivery, capture, review, sync, import, taste,
                        setup, review fixes, install; 2.0: store2, hub, remember, inbox, lint, canon,
-                       ui-server), never installed
+                       ui-server, eval), never installed; tests/fixtures/eval/ is the eval's frozen answer
+                       key (60 fictional rules and a Canon store seeding every gate), pinned by its hash
 bootstrap.sh           one-command install, check, update
 kis/                   this repo's own project memory (read kis/state first)
 ```

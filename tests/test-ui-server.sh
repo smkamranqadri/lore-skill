@@ -249,7 +249,7 @@ state = json.load(open(os.path.join(S.root, ".git/lore/state.json")))
 
 eq(S.rule_files(), FILES, "the fixture's rule files")
 eq(api("GET", "/api/summary"), (200, {"store": S.root, "machine": open(os.path.join(S.root, ".git/lore/machine")).read().strip(),
-   "version": "2.0.0-p4a.1", "head": git(S.root, "rev-parse", "--short", "HEAD"),
+   "version": "2.0.0-p5a", "head": git(S.root, "rev-parse", "--short", "HEAD"),
    "hub": {"url": facts["hub"], "last_push": state["last_push"], "push_fails": 0},
    "counts": {"files": 5, "rules": 10, "inbox": 3}}), "summary")
 
