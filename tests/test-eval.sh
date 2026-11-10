@@ -29,7 +29,7 @@ want() { [[ "$1" == "$2" ]] || fail "$3: got [$1], want [$2]"; }
 # ---- the fakes --------------------------------------------------------------------------------
 
 # A fake Loremaster: one line per call in $FAKE_CALLS, then it files the fixture's rules as
-# FAKE_LM says (perfect, scatter, nolinks, droplinks:K, dump, gotchas, misfile:K, skip:K, prose, fail).
+# FAKE_LM says (perfect, scatter, nolinks, droplinks:K, dump, gotchas, misfile:K, skip:K, prose, fail, reject).
 cat > "$tmp/fake-lm.py" <<'FAKE'
 #!/usr/bin/env python3
 import json, os, re, sys
@@ -43,6 +43,9 @@ if mode == "prose":
 if mode == "fail":
     print("loremaster exploded", file=sys.stderr)
     sys.exit(3)
+if mode == "reject":
+    print(json.dumps({"ops": [{"op": "invented"}]}))
+    sys.exit(0)
 prompt = open(os.environ["LORE_PROMPT_FILE"]).read()
 key = json.load(open(os.environ["FAKE_KEY"]))
 by_text = {r["text"]: r for r in key}
@@ -152,10 +155,20 @@ ops = {
                    {"file": "gotchas/tarnwell-limits.md", "rule_ids": tarn[13:]}]},
                {"op": "describe", "file": "gotchas/tarnwell-limits.md", "read_when": "a Tarnwell limit or quota bites"},
                {"op": "link", "file": "gotchas/tarnwell.md", "to": "gotchas/tarnwell-limits.md"}],
+ # the same fixes, but the finding only moves: every Tarnwell rule to one renamed file (still 26 rules), the
+ # clashing Mossdb pair to a new file with its retirement waiting there
+ "oversized-moved": [{"op": "split", "file": "gotchas/tarnwell.md", "into": [{"file": "gotchas/tarnwell-renamed.md", "rule_ids": tarn}]},
+                     {"op": "describe", "file": "gotchas/tarnwell-renamed.md", "read_when": "you change Tarnwell quotas"}],
+ "duplicate-moved": [{"op": "split", "file": "gotchas/mossdb.md", "into": [
+                         {"file": "gotchas/mossdb.md", "rule_ids": [rid("gotchas/mossdb.md", t) for t in texts("gotchas/mossdb.md") if "now()" not in t]},
+                         {"file": "gotchas/mossdb-now.md", "rule_ids": [rid("gotchas/mossdb.md", t) for t in texts("gotchas/mossdb.md") if "now()" in t]}]},
+                     {"op": "describe", "file": "gotchas/mossdb-now.md", "read_when": "you rely on Mossdb now()"},
+                     {"op": "link", "file": "gotchas/mossdb.md", "to": "gotchas/mossdb-now.md"},
+                     {"op": "retire", "rule_id": rid("gotchas/mossdb.md", dup), "reason": "it repeats the rule before it"}],
  "thin": [{"op": "merge", "from": "gotchas/fennec-snapshots.md", "to": "gotchas/fennec.md"}],
  "stale": [{"op": "merge", "from": "gotchas/brindle-cache.md", "to": "gotchas/brindle.md"}],
 }
-sel = list(ops) if which == "all" else which.split(",")
+sel = [g for g in ops if not g.endswith("-moved")] if which == "all" else which.split(",")
 print(json.dumps({"ops": [o for g in sel for o in ops[g]], "answer": "fixed"}))
 FAKE
 cat > "$tmp/j.py" <<'FAKE'
@@ -291,6 +304,14 @@ want "$(ncalls)" 1 "a failed reply is not retried"
 want "$(j "$tmp/out-f1/report.json" "(d['status'], d['error'], 'bars' in d, d['calls'])")" "('failed', 'ReplyError: the reply is not JSON', False, 1)" "prose report"
 grep -qx -- '- Result: FAILED: ReplyError: the reply is not JSON' "$tmp/out-f1/report.md" || fail "report.md failure line"
 [[ -f "$tmp/out-f1/report.json" && -f "$tmp/out-f1/report.md" && ! -e "$tmp/out-f1/spot-check.md" ]] || fail "files of a failed run"
+lm reject f3
+want "$rc" 2 "a rejected reply: exit"
+want "$(ncalls)" 1 "a rejected Loremaster reply stops the run: one call, not six"
+want "$(j "$tmp/out-f3/report.json" "(d['status'], d['calls'], len(d['batches']), len(d['rejected']), 'bars' in d, d['error'].startswith('LoreError: the validator rejected the reply to batch 1: '))")" "('failed', 1, 1, 1, False, True)" "rejected Loremaster report"
+want "$(j "$tmp/out-f3/report.json" "d['rejected'] == d['batches'][0]['rejected'] and d['error'].endswith(d['rejected'][0])")" True "the rejection message is kept in report.json"
+grep -q -- '^- Result: FAILED: LoreError: the validator rejected the reply to batch 1: ' "$tmp/out-f3/report.md" || fail "report.md names the rejection"
+grep -q '^| 1 | 10 | - | 0 | .*invented' "$tmp/out-f3/report.md" || fail "report.md keeps the rejected batch row"
+[[ ! -e "$tmp/out-f3/spot-check.md" ]] || fail "a rejected run wrote a sheet"
 lm fail f2
 want "$rc" 2 "failing command exit"
 want "$(j "$tmp/out-f2/report.json" "(d['status'], d['error'].startswith('LoreError: the model command exited 3: '))")" "('failed', True)" "failing command report"
@@ -421,8 +442,10 @@ want "$(bars "$tmp/out-c4")" "{'canon': (0, 8, False)}" "do-nothing bar"
 want "$(ncalls)" 1 "canon does nothing, one call"
 grep -qx 'canon: 0/8 FAIL' "$tmp/log-c4" || fail "stdout canon fraction"
 cn bad-ops c5
-want "$rc" 1 "rejected reply: exit"
-want "$(j "$tmp/out-c5/report.json" "(d['status'], len(d['rejected']), d['bars']['canon']['n'], d['commits'])")" "('ok', 1, 0, [])" "a rejected reply is reported, nothing written"
+want "$rc" 2 "rejected reply: exit"
+want "$(ncalls)" 1 "a rejected Canon reply, one call"
+want "$(j "$tmp/out-c5/report.json" "(d['status'], d['calls'], len(d['rejected']), 'bars' in d, d['error'].startswith('LoreError: the validator rejected Canon'), d['error'].endswith(d['rejected'][0]))")" "('failed', 1, 1, False, True, True)" "a rejected reply fails the run and keeps its message"
+grep -q -- "^- Result: FAILED: LoreError: the validator rejected Canon's reply: " "$tmp/out-c5/report.md" || fail "report.md names the rejection"
 cn prose c6
 want "$rc" 2 "canon prose: exit"
 want "$(j "$tmp/out-c6/report.json" "(d['status'], d['error'], d['calls'], 'bars' in d)")" "('failed', 'ReplyError: the reply is not JSON', 1, False)" "canon prose report"
@@ -431,6 +454,23 @@ want "$rc" 2 "canon failing: exit"
 want "$(j "$tmp/out-c7/report.json" "d['error'].startswith('LoreError: the model command exited 3: ')")" "True" "canon failure report"
 want "$(find "$TMPDIR" -mindepth 1 | wc -l | tr -d ' ')" 0 "temporary files left after Canon runs"
 
+echo "-- Canon: a finding that moves is not fixed, and one that was not seeded fails the bar"
+reply contradiction,core-budget,broken-link,orphan,duplicate,oversized-moved,thin,stale
+cn reply c9
+want "$rc" 1 "every Tarnwell rule moved to a renamed file: exit"
+want "$(gates "$tmp/out-c9")" "{'contradiction': 'in Inbox', 'core-budget': 'fixed', 'broken-link': 'fixed', 'orphan': 'fixed', 'duplicate': 'in Inbox', 'oversized': 'not fixed', 'thin': 'fixed', 'stale': 'fixed'}" "the moved oversized finding is not fixed"
+want "$(bars "$tmp/out-c9")" "{'canon': (7, 8, False)}" "moved oversized bar"
+want "$(j "$tmp/out-c9/report.json" "(d['status'], d['rejected'], d['new_findings'])")" "('ok', [], ['oversized gotchas/tarnwell-renamed.md'])" "the moved finding is named"
+grep -q '^| canon | 7/8 | 87.5% | every gate.s fix present | FAIL |$' "$tmp/out-c9/report.md" || fail "report.md canon row, moved finding"
+grep -q 'introduced findings (any one fails the bar): oversized gotchas/tarnwell-renamed.md$' "$tmp/out-c9/report.md" || fail "report.md names the introduced finding"
+grep -qx 'canon: 7/8 FAIL' "$tmp/log-c9" || fail "stdout canon line, moved finding"
+reply contradiction,core-budget,broken-link,orphan,duplicate-moved,oversized,thin,stale
+cn reply c10
+want "$rc" 1 "the clashing Mossdb pair moved, its retirement waiting: exit"
+want "$(gates "$tmp/out-c10")" "{'contradiction': 'in Inbox', 'core-budget': 'fixed', 'broken-link': 'fixed', 'orphan': 'fixed', 'duplicate': 'in Inbox', 'oversized': 'fixed', 'thin': 'fixed', 'stale': 'fixed'}" "all eight gates present"
+want "$(bars "$tmp/out-c10")" "{'canon': (8, 8, False)}" "a finding introduced on a new file fails the bar at 8/8"
+want "$(j "$tmp/out-c10/report.json" "d['new_findings']")" "['duplicate gotchas/mossdb-now.md']" "the introduced finding is named"
+
 echo "-- Canon: a fixture that does not seed every gate once is not run"
 cp -r "$fixture" "$tmp/fx-canon"
 rm "$tmp/fx-canon/canon/gotchas/harbourlight.md" "$tmp/fx-canon/canon/.lore/meta/gotchas/harbourlight.json"
@@ -438,6 +478,46 @@ reply all
 rc=0; FAKE_CANON=reply python3 "$lore" eval canon --fixture "$tmp/fx-canon" --out "$tmp/out-c8" > /dev/null 2>&1 || rc=$?
 want "$rc" 2 "an unseeded gate: exit"
 want "$(j "$tmp/out-c8/report.json" "(d['status'], d['calls'], d['error'].startswith('LoreError: the fixture does not seed every gate once and nothing else: lint finds '))")" "('failed', 0, True)" "no model call on a fixture that does not seed every gate"
+
+echo "-- an empty --out directory, or one that cannot be created"
+mkdir "$tmp/out-e1"
+lm perfect e1
+want "$rc" 0 "an existing empty --out, Loremaster: exit"
+want "$(ncalls)" 6 "an existing empty --out, Loremaster: calls"
+want "$(j "$tmp/out-e1/report.json" "d['status']")" ok "an existing empty --out, Loremaster: report"
+mkdir "$tmp/out-e2"
+reply all
+cn reply e2
+want "$rc" 0 "an existing empty --out, Canon: exit"
+want "$(bars "$tmp/out-e2")" "{'canon': (8, 8, True)}" "an existing empty --out, Canon: bar"
+echo x > "$tmp/afile"
+: > "$FAKE_CALLS"; rc=0
+FAKE_CANON=reply python3 "$lore" eval canon --out "$tmp/afile/sub" > /dev/null 2> "$tmp/err-e3" || rc=$?
+want "$rc" 2 "an --out that cannot be created: exit"
+grep -q '^Error: ' "$tmp/err-e3" || fail "an --out that cannot be created: message: $(cat "$tmp/err-e3")"
+grep -q 'Traceback' "$tmp/err-e3" && fail "an --out that cannot be created crashed"
+want "$(ncalls)" 0 "an --out that cannot be created makes no model call"
+lm perfect e4 --workdir "$tmp/afile/work"
+want "$rc" 2 "a --workdir that cannot be created: exit"
+want "$(ncalls)" 0 "a --workdir that cannot be created makes no model call"
+
+echo "-- the default owner store is protected while LORE_STORE2 points elsewhere"
+want "$LORE_STORE2" "$real" "LORE_STORE2 is the other store"
+ln -s "$HOME/.agents/lore" "$tmp/dangling"
+for where in "$HOME/.agents/lore" "$HOME/.agents/lore/work" "$tmp/dangling/work"; do
+  lm perfect d1 --workdir "$where"
+  want "$rc" 2 "--workdir $where: exit"
+  grep -q "is or is inside the owner's store; the eval builds its own\$" "$tmp/err-d1" || fail "--workdir $where message: $(cat "$tmp/err-d1")"
+  want "$(ncalls)" 0 "--workdir $where: model calls"
+  [[ ! -e "$HOME/.agents" && ! -e "$tmp/out-d1" ]] || fail "--workdir $where: something was created"
+  rc=0; : > "$FAKE_CALLS"
+  python3 "$lore" eval canon --out "$where" > /dev/null 2> "$tmp/err-d2" || rc=$?
+  want "$rc" 2 "--out $where: exit"
+  grep -q "^Error: refused: --out .* is or is inside the owner's store" "$tmp/err-d2" || fail "--out $where message"
+  want "$(ncalls)" 0 "--out $where: model calls"
+  [[ ! -e "$HOME/.agents" ]] || fail "--out $where: the default store path was created"
+done
+want "$(treehash "$real")" "$before" "the owner's store after the default-path refusals"
 
 echo "-- the default fixture is the repository's"
 want "$(j "$tmp/out-c1/report.json" "d['fixture']['path']")" "$fixture" "default fixture path"

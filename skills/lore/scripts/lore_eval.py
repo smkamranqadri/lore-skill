@@ -6,9 +6,11 @@ store: a path argument that is, holds or sits inside a store is refused, and so 
 lore_master.file_items with the role's model, in batches. It then measures the folder, oversized
 and related bars and writes the meaning spot-check sheet; the tool never judges meaning. `canon`
 copies the Canon fixture (every lint gate seeded once) into the temp store, runs Canon once through
-the role's model, as `lore canon --force` does, and re-lints. A rejected or failing reply is
-reported, never retried. Exit 0: every bar the tool can compute is met; 1: one is not; 2: the run
-failed or did not start. The report is written whenever the run started.
+the role's model, as `lore canon --force` does, and re-lints the whole store: a seeded gate is fixed
+only when none of its findings remains anywhere, and a finding that was not seeded fails the bar. A
+failing reply, or one the validator rejects, fails the run and is reported, never retried (a
+Loremaster run stops at the first rejected batch). Exit 0: every bar the tool can compute is met;
+1: one is not; 2: the run failed or did not start. The report is written whenever the run started.
 Standard library only.
 """
 
@@ -106,9 +108,17 @@ def _inside(path, base):
     return path == base or path.startswith(base.rstrip(os.sep) + os.sep)
 
 
+def owner_stores():
+    """Both places the owner's store can be: the default under the current HOME and the LORE_STORE2
+    override. Both stay protected whichever is selected, and whether or not either exists yet.
+    _real resolves symlinks of the deepest existing ancestor and keeps the parts that do not exist."""
+    return {_real(os.path.join("~", ".agents", "lore")), _real(lore_store.store_root())}
+
+
 def refuse_owner_store(path, what):
     """The eval never builds in, writes to or reads the owner's store, even one that does not exist yet."""
-    if _inside(_real(path), _real(lore_store.store_root())):
+    real = _real(path)
+    if any(_inside(real, base) for base in owner_stores()):
         raise lore.LoreError(f"refused: {what} {path} is or is inside the owner's store; the eval builds its own")
 
 
@@ -297,7 +307,7 @@ def spot_sheet(rows):
 
 def run_loremaster(fixture, batch, workdir=None):
     """(report, spot-check sheet or None) of one Loremaster run."""
-    report = {"role": "loremaster", "status": "failed", "error": None, "batch_size": batch,
+    report = {"role": "loremaster", "status": "failed", "error": None, "rejected": [], "batch_size": batch,
               "fixture": {"path": fixture, "sha256": fixture_hash(fixture)}}
     t0, meter, batches, sheet = time.monotonic(), Meter(), [], None
     try:
@@ -313,6 +323,10 @@ def run_loremaster(fixture, batch, workdir=None):
                 batches.append({"batch": n // batch + 1, "items": len(chunk), "commit": res["commit"],
                                 "files_changed": len(res["changed"]), "inbox": len(res["inbox"]),
                                 "rejected": [lore.redact(str(x)) for x in res["rejected"][:5]]})
+                if res["rejected"]:   # the real path refuses this reply: a failed run, and no more calls
+                    report["rejected"] = batches[-1]["rejected"]
+                    raise lore.LoreError(f"the validator rejected the reply to batch {n // batch + 1}: "
+                                         + "; ".join(report["rejected"]))
             bars, detail, pairs, rows, info = measure_loremaster(store, rules)
             report.update(status="ok", bars=bars, rules=detail, pairs=pairs, **info)
             report["spot_check"] = [r["id"] for r in rows]
@@ -361,7 +375,7 @@ def keys_of(findings):
 
 def run_canon(fixture, workdir=None):
     """The report of one Canon run."""
-    report = {"role": "canon", "status": "failed", "error": None,
+    report = {"role": "canon", "status": "failed", "error": None, "rejected": [],
               "fixture": {"path": fixture, "sha256": fixture_hash(fixture)}}
     t0, meter = time.monotonic(), Meter()
     try:
@@ -379,21 +393,25 @@ def run_canon(fixture, workdir=None):
                 lore_store.begin(store)
                 res = lore_canon.run(store, lore_canon.held(store, base)["kept"],
                                      meter.wrap(lore_hub.run_model(store, "canon")))
+            report["rejected"] = [lore.redact(str(x)) for x in res["rejected"][:5]]
+            if res["rejected"]:   # the real path refuses this reply: a failed run
+                raise lore.LoreError("the validator rejected Canon's reply: " + "; ".join(report["rejected"]))
+            # Judged on the whole store after the run, never on the seeded (gate, file): a finding
+            # that moved to another file is still there, and one that was not seeded is introduced.
             after = lore_lint.lint(store)
             remaining, waiting = keys_of(after), keys_of(lore_canon.held(store, after)["inbox"])
+            introduced = sorted(f"{g} {f}" for g, f in remaining - keys_of(base))
             gates = {}
             for g, v in expect["gates"].items():
-                key = (g, v["file"])
-                status = "fixed" if key not in remaining else (
-                    "in Inbox" if v["inbox"] and key in waiting else "not fixed")
+                left = {k for k in remaining if k[0] == g}
+                status = "fixed" if not left else (
+                    "in Inbox" if v["inbox"] and left <= waiting else "not fixed")
                 gates[g] = {"file": v["file"], "status": status, "fix": v["fix"]}
             done = sum(g["status"] != "not fixed" for g in gates.values())
             report.update(status="ok", gates=gates, bars={"canon": bar(done, len(gates), "every gate's fix present",
-                                                                         done == len(gates))},
+                                                                         done == len(gates) and not introduced)},
                           ops=res["ops"], commits=[subject for _, subject in res["commits"]], inbox=res["inbox"],
-                          rejected=[lore.redact(str(x)) for x in res["rejected"][:5]],
-                          answer=res["answer"][:300], dropped=res["dropped"],
-                          new_findings=sorted(f"{g} {f}" for g, f in remaining - keys_of(base)))
+                          answer=res["answer"][:300], dropped=res["dropped"], new_findings=introduced)
     except Exception as err:
         report["error"] = failure(err)
     report.update(calls=meter.calls, tokens=meter.tokens(), wall_seconds=round(time.monotonic() - t0, 1))
@@ -457,7 +475,8 @@ def render(report, stamp):
         out += ["## Gates", "", "| Gate | File | Result | A fix looks like |", "|---|---|---|---|"]
         out += [f"| {g} | {v['file']} | {v['status']} | {v['fix']} |" for g, v in r["gates"].items()]
         out += ["", f"Canon: {r['ops']} op(s), {len(r['commits'])} commit(s), inbox {', '.join(r['inbox']) or 'none'}; "
-                    f"rejected: {'; '.join(r['rejected']) or 'no'}; new findings: {', '.join(r['new_findings']) or 'none'}", ""]
+                    f"rejected: {'; '.join(r['rejected']) or 'no'}; introduced findings (any one fails the bar): "
+                    f"{', '.join(r['new_findings']) or 'none'}", ""]
     return "\n".join(out)
 
 
@@ -492,8 +511,8 @@ def cmd_eval(_, args):
             check_dir(args.workdir, "--workdir")
             if _inside(_real(args.workdir), _real(out)) or _inside(_real(out), _real(args.workdir)):
                 raise lore.LoreError("refused: --workdir and --out must be separate directories")
-        os.makedirs(out)
-    except lore.LoreError as err:
+        os.makedirs(out, exist_ok=True)   # check_dir allowed only a missing or empty directory
+    except (lore.LoreError, OSError) as err:
         print(f"Error: {err}", file=sys.stderr)
         raise SystemExit(EXIT_FAILED)
     if args.role == "loremaster":
