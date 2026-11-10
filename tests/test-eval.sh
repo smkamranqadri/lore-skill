@@ -165,10 +165,16 @@ ops = {
                      {"op": "describe", "file": "gotchas/mossdb-now.md", "read_when": "you rely on Mossdb now()"},
                      {"op": "link", "file": "gotchas/mossdb.md", "to": "gotchas/mossdb-now.md"},
                      {"op": "retire", "rule_id": rid("gotchas/mossdb.md", dup), "reason": "it repeats the rule before it"}],
+ # a second near-duplicate pair in the seeded file: the migration and connection-pool rules reworded
+ # into the same sentence, beside the retirement that covers only the first pair
+ "duplicate-pair": [{"op": "reword", "rule_id": rid("gotchas/mossdb.md", "A Mossdb migration that adds an index locks the table; build the index concurrently on large tables."),
+                     "text": "Mossdb backup restores require an explicit snapshot label before the recovery begins."},
+                    {"op": "reword", "rule_id": rid("gotchas/mossdb.md", "Mossdb connection pools default to ten connections, which the Marrow API exhausts during the nightly import."),
+                     "text": "Mossdb backup restores require an explicit snapshot label before the recovery begins itself."}],
  "thin": [{"op": "merge", "from": "gotchas/fennec-snapshots.md", "to": "gotchas/fennec.md"}],
  "stale": [{"op": "merge", "from": "gotchas/brindle-cache.md", "to": "gotchas/brindle.md"}],
 }
-sel = [g for g in ops if not g.endswith("-moved")] if which == "all" else which.split(",")
+sel = [g for g in ops if not g.endswith(("-moved", "-pair"))] if which == "all" else which.split(",")
 print(json.dumps({"ops": [o for g in sel for o in ops[g]], "answer": "fixed"}))
 FAKE
 cat > "$tmp/j.py" <<'FAKE'
@@ -469,7 +475,17 @@ cn reply c10
 want "$rc" 1 "the clashing Mossdb pair moved, its retirement waiting: exit"
 want "$(gates "$tmp/out-c10")" "{'contradiction': 'in Inbox', 'core-budget': 'fixed', 'broken-link': 'fixed', 'orphan': 'fixed', 'duplicate': 'in Inbox', 'oversized': 'fixed', 'thin': 'fixed', 'stale': 'fixed'}" "all eight gates present"
 want "$(bars "$tmp/out-c10")" "{'canon': (8, 8, False)}" "a finding introduced on a new file fails the bar at 8/8"
-want "$(j "$tmp/out-c10/report.json" "d['new_findings']")" "['duplicate gotchas/mossdb-now.md']" "the introduced finding is named"
+want "$(j "$tmp/out-c10/report.json" "d['new_findings']")" "['duplicate gotchas/mossdb-now.md (376b853a, 96079fb3)']" "the introduced finding is named with its rules"
+reply contradiction,core-budget,broken-link,orphan,duplicate,duplicate-pair,oversized,thin,stale
+cn reply c11
+want "$rc" 1 "a second duplicate pair in the seeded file: exit"
+want "$(j "$tmp/out-c11/report.json" "(d['status'], d['rejected'], d['calls'])")" "('ok', [], 1)" "the second pair's reply was accepted and run"
+want "$(gates "$tmp/out-c11")" "{'contradiction': 'in Inbox', 'core-budget': 'fixed', 'broken-link': 'fixed', 'orphan': 'fixed', 'duplicate': 'not fixed', 'oversized': 'fixed', 'thin': 'fixed', 'stale': 'fixed'}" "the second pair is not waiting in the Inbox"
+want "$(bars "$tmp/out-c11")" "{'canon': (7, 8, False)}" "the second pair fails the bar"
+want "$(j "$tmp/out-c11/report.json" "d['new_findings']")" "['duplicate gotchas/mossdb.md (0f98a0c0, 453d48eb)']" "the introduced pair is named"
+grep -q '^| duplicate | gotchas/mossdb.md | not fixed | ' "$tmp/out-c11/report.md" || fail "report.md duplicate row, second pair"
+grep -q 'introduced findings (any one fails the bar): duplicate gotchas/mossdb.md (0f98a0c0, 453d48eb)$' "$tmp/out-c11/report.md" || fail "report.md names the introduced pair"
+grep -qx 'canon: 7/8 FAIL' "$tmp/log-c11" || fail "stdout canon line, second pair"
 
 echo "-- Canon: a fixture that does not seed every gate once is not run"
 cp -r "$fixture" "$tmp/fx-canon"

@@ -369,8 +369,25 @@ def copy_canon(store, fixture):
     lore_store.commit(store, "eval fixture")
 
 
-def keys_of(findings):
-    return {(f["gate"], f["file"]) for f in findings}
+RULE_GATES = ("contradiction", "duplicate")   # findings about particular rules; the others are about a file
+
+
+def ident(f):
+    """One finding's identity: its gate, its file and what singles it out inside the file: the rule
+    ids for a finding about rules (two duplicate pairs in one file are two findings), the link
+    target for a broken link. A file-level finding keeps no rule ids: lint derives them (the
+    core rules dropped, the rules of a thin file), and they change as the file does."""
+    ids = tuple(sorted(f["rule_ids"])) if f["gate"] in RULE_GATES else ()
+    return (f["gate"], f["file"], ids, f["detail"] if f["gate"] == "broken-link" else "")
+
+
+def idents_of(findings):
+    return {ident(f) for f in findings}
+
+
+def name_of(i):
+    gate, file, ids, _ = i
+    return " ".join([gate, file] + ([f"({', '.join(ids)})"] if ids else []))
 
 
 def run_canon(fixture, workdir=None):
@@ -386,7 +403,7 @@ def run_canon(fixture, workdir=None):
             copy_canon(store, fixture)
             base = lore_lint.lint(store)
             want = {(g, v["file"]) for g, v in expect["gates"].items()}
-            if keys_of(base) != want or len(base) != len(want):
+            if {i[:2] for i in idents_of(base)} != want or len(base) != len(want):
                 raise lore.LoreError("the fixture does not seed every gate once and nothing else: lint finds "
                                      + ", ".join(f"{f['gate']} {f['file']}" for f in base))
             with store.locked():
@@ -396,14 +413,16 @@ def run_canon(fixture, workdir=None):
             report["rejected"] = [lore.redact(str(x)) for x in res["rejected"][:5]]
             if res["rejected"]:   # the real path refuses this reply: a failed run
                 raise lore.LoreError("the validator rejected Canon's reply: " + "; ".join(report["rejected"]))
-            # Judged on the whole store after the run, never on the seeded (gate, file): a finding
-            # that moved to another file is still there, and one that was not seeded is introduced.
+            # Judged on the whole store after the run, finding by finding, never on the seeded
+            # (gate, file): a finding that moved to another file is still there, one that was not
+            # seeded is introduced (a second pair in a seeded file included), and one waits in the
+            # Inbox only when a pending retirement covers that finding's own rules.
             after = lore_lint.lint(store)
-            remaining, waiting = keys_of(after), keys_of(lore_canon.held(store, after)["inbox"])
-            introduced = sorted(f"{g} {f}" for g, f in remaining - keys_of(base))
+            remaining, waiting = idents_of(after), idents_of(lore_canon.held(store, after)["inbox"])
+            introduced = sorted(name_of(i) for i in remaining - idents_of(base))
             gates = {}
             for g, v in expect["gates"].items():
-                left = {k for k in remaining if k[0] == g}
+                left = {i for i in remaining if i[0] == g}
                 status = "fixed" if not left else (
                     "in Inbox" if v["inbox"] and left <= waiting else "not fixed")
                 gates[g] = {"file": v["file"], "status": status, "fix": v["fix"]}
