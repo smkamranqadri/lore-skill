@@ -22,7 +22,7 @@ export TMPDIR="$tmp/tmpdir"; mkdir -p "$TMPDIR"
 
 lore="$repo_root/skills/lore/scripts/lore.py"
 fixture="$repo_root/tests/fixtures/eval"
-FIXTURE_SHA="0d5d5c25b056fbe0975323c48667a28ba5352dbb2e8c38d9d00bf40851bcdd08"
+FIXTURE_SHA="f28910751f19e8527e6f2f32ac2b2f622e9a804eee727e44306eb524f07e97e1"
 fail() { echo "FAIL: $*" >&2; exit 1; }
 want() { [[ "$1" == "$2" ]] || fail "$3: got [$1], want [$2]"; }
 

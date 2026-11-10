@@ -58,5 +58,5 @@
   {"id": "r57", "text": "New web front ends start from the Quillbar starter template, with strict types on from the first commit.", "explicit": false, "folder": "stack", "related": []},
   {"id": "r58", "text": "I am a senior product and engineering leader who still reads every diff before it ships.", "explicit": true, "folder": "profile.md", "related": []},
   {"id": "r59", "text": "I run several projects at once and keep separate systems for project memory, orchestration and personal notes.", "explicit": false, "folder": "profile.md", "related": []},
-  {"id": "r60", "text": "I work mostly from a Linux laptop and a small home server; I do not own a Mac.", "explicit": false, "folder": "profile.md", "related": []}
+  {"id": "r60", "text": "I work mostly from a Tern laptop and a small home server; I do not own a Vellum desktop.", "explicit": false, "folder": "profile.md", "related": []}
 ]
