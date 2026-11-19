@@ -1,9 +1,11 @@
 # Changelog
 
-## 2.0.0-p5a (unreleased)
+## 2.0.0-p5a.1 (unreleased)
 
 `lore eval loremaster|canon`: the plan's quality bars, measured by hand against the configured models
-before the filing session. Nothing 1.x changes, and no prompt or code of the Loremaster or Canon.
+before the filing session. The single tuning round clarifies filing and reports the current index deficit.
+Duplicate matches are provisional until the owner confirms their meaning; the direct scores remain visible.
+The Canon-only `eval-canon-v2` fixture records an explicit correction while the original stays frozen.
 
 - **A frozen fixture** in `tests/fixtures/eval/`: 60 fictional rules (per rule the expected top-level
   folder and the ids whose rules belong linked, 20 pairs, 4 near-duplicate pairs and 2 contradicting
@@ -24,7 +26,7 @@ before the filing session. Nothing 1.x changes, and no prompt or code of the Lor
   role's command line, wall time and an estimated token count (characters over four; the CLIs report
   none). Exit 0: every bar the tool computes is met; 1: one is not; 2: the run failed or did not start
   (a failing or unparseable reply is reported, never retried).
-- `SKILL.md` version `2.0.0-p5a`; `tests/test-ui-server.sh` pins that version in its summary check.
+- `SKILL.md` version `2.0.0-p5a.1`; `tests/test-ui-server.sh` pins that version in its summary check.
 
 ## 2.0.0-p4a.1 (unreleased)
 

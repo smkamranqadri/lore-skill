@@ -1,0 +1,46 @@
+{
+ "day": "2026-10-01",
+ "note": "Each gate fires once on this tree and nothing else does. fixed = no finding of that gate on that file after Canon's run; in Inbox (only where inbox is true) = a retirement of one of the finding's rules waits in the Inbox.",
+ "gates": {
+  "contradiction": {
+   "file": "how-i-work/questions.md",
+   "inbox": true,
+   "fix": "retire superseded rule 76b5ab29; the retirement waits in the Inbox"
+  },
+  "core-budget": {
+   "file": "core.md",
+   "inbox": false,
+   "fix": "reword the longest core rules shorter until every core rule fits the index"
+  },
+  "broken-link": {
+   "file": "gotchas/quillbar.md",
+   "inbox": false,
+   "fix": "unlink gotchas/quillbar-legacy.md, or link to the file that holds those rules"
+  },
+  "orphan": {
+   "file": "gotchas/harbourlight.md",
+   "inbox": false,
+   "fix": "describe the file with a read-when line, or link to it from a related topic"
+  },
+  "duplicate": {
+   "file": "gotchas/mossdb.md",
+   "inbox": true,
+   "fix": "retire one of the two near-identical rules; the retirement waits in the Inbox"
+  },
+  "oversized": {
+   "file": "gotchas/tarnwell.md",
+   "inbox": false,
+   "fix": "split the 26 rules into topic files of 25 or fewer, each described"
+  },
+  "thin": {
+   "file": "gotchas/fennec-snapshots.md",
+   "inbox": false,
+   "fix": "merge the file into gotchas/fennec.md"
+  },
+  "stale": {
+   "file": "gotchas/brindle-cache.md",
+   "inbox": false,
+   "fix": "merge the file into gotchas/brindle.md; a describe alone leaves the finding, since lint reads only the last-read dates"
+  }
+ }
+}

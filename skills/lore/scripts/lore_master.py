@@ -802,9 +802,8 @@ def build_prompt(store, items, context):
 FENCE_RE = re.compile(r"```[a-zA-Z]*[ \t]*\n(.*?)\n[ \t]*```", re.S)
 
 
-def parse_reply(text):
-    """The reply's {"ops": [...], "answer": str}. A code fence or text around the object is
-    tolerated; anything else raises ReplyError (which never quotes the reply)."""
+def decode_reply(text):
+    """Decode the first reply object, tolerating a fence or surrounding text."""
     if not isinstance(text, str) or not text.strip():
         raise ReplyError("the reply is empty")
     t = text.strip()
@@ -821,6 +820,12 @@ def parse_reply(text):
         raise ReplyError("the reply is not JSON")
     if not isinstance(data, dict):
         raise ReplyError("the reply is not a JSON object")
+    return data
+
+
+def parse_reply(text):
+    """Parse a strict ordinary reply; errors never quote model output."""
+    data = decode_reply(text)
     extra = set(data) - {"ops", "answer"}
     if extra:
         raise ReplyError(f"unknown reply field(s): {', '.join(sorted(_safe(k) for k in extra))}")

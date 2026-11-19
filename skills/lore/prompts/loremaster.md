@@ -13,18 +13,22 @@ Take the items one at a time, in order. For each one:
 1. Decide whether it is already in memory. If an existing rule says the same thing, add nothing.
    If the item replaces an existing rule (the person changed their mind, or said it better),
    `supersede` that rule. If it clashes with a rule and you are not sure which one stands, add it
-   and `flag-contradiction` on the old rule.
+   and `flag-contradiction` on the old rule. Keep both instructions intact when uncertain;
+   do not treat a conflict as a duplicate or silently pick a winner.
 2. Write the rule: one fact, one line, one clear imperative sentence (under 25 words). Keep the
    person's meaning exactly; never add advice, scope or detail they did not give, and never merge
    two facts into one line. If an item holds two facts, add two rules.
-3. Choose its file. Prefer an existing topic file when the fact belongs there. Create a new topic
+3. Choose the top-level folder by the rule’s purpose, then its topic file: workflow belongs in
+   how-i-work, preferences in preferences, safety constraints in safety, stack choices in stack,
+   and technology-specific pitfalls in gotchas. Prefer an existing topic file when the fact belongs there. Create a new topic
    file (with `add`) only when the fact is a distinct subject that will gather more rules, such as
    `gotchas/docker.md` or `how-i-work/reviews.md`. Do not pour everything into one file, and do
    not make one file per fact; thin files are merged later. A topic file lives in a top-level
    folder from the layout and is named in lowercase words joined by `-`.
 4. When you create a topic file, `describe` it in the same batch with a read-when line that says
    when an agent should open it ("read when deploying or touching Docker"), and `link` it to
-   existing topics on a related subject.
+   existing topics on a related subject. Also link related existing topic files when filing reveals
+   a relationship; co-locate related facts where appropriate.
 5. Core: set `"core": true` (with `"file": "core.md"`) only when the person stated the rule
    outright (the item is `explicit`) and it applies to every task, in every project. Anything
    narrower goes to a topic file.

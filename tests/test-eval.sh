@@ -47,6 +47,7 @@ if mode == "reject":
     print(json.dumps({"ops": [{"op": "invented"}]}))
     sys.exit(0)
 prompt = open(os.environ["LORE_PROMPT_FILE"]).read()
+assert '"folder"' not in prompt and '"related"' not in prompt and 'near-duplicate' not in prompt
 key = json.load(open(os.environ["FAKE_KEY"]))
 by_text = {r["text"]: r for r in key}
 by_id = {r["id"]: r for r in key}
@@ -89,6 +90,8 @@ def file_for(r):
 ops, created = [], set()
 for it in items:
     r = by_text[it["text"]]
+    if kind == "duplicates" and r["id"] in ("r02", "r11", "r25"):
+        continue
     if kind == "skip" and int(r["id"][1:]) <= arg:
         continue
     f = file_for(r)
@@ -105,7 +108,22 @@ if kind not in ("nolinks", "dump"):
             continue
         if fa != fb and fa in here and fb in here:
             ops.append({"op": "link", "file": fa, "to": fb})
-out = json.dumps({"ops": ops, "answer": f"filed {len(items)}"})
+reply = {"ops": ops, "answer": f"filed {len(items)}"}
+if kind == "duplicates":
+    duplicates = []
+    for n, it in enumerate(items, 1):
+        r = by_text[it["text"]]
+        if r["id"] == "r02":
+            duplicates.append({"input": n, "earlier_input": 1})
+        if r["id"] == "r25":
+            duplicates.append({"input": n, "earlier_input": 1})
+        if r["id"] == "r11":
+            blocks = re.split(r"(?m)^### ", prompt.split("## Topic files nearest")[1].split("## Items to file")[0])
+            shown = [(b.splitlines()[0], m.group(1)) for b in blocks[1:] for m in [re.search(r"(?m)^- \[([0-9a-f]{8})\] ", b)] if m]
+            assert shown, "previous batch rule is shown"
+            duplicates.append({"input": n, "file": shown[0][0], "rule_id": shown[0][1]})
+    reply["duplicates"] = duplicates
+out = json.dumps(reply)
 with open(os.environ["FAKE_CALLS"] + ".sizes", "a") as f:   # characters in and out, for the token estimate
     f.write(f"{len(prompt)} {len(out) + 1}\n")
 print(out)
@@ -117,7 +135,7 @@ cat > "$tmp/fake-canon.sh" <<'FAKE'
 #!/usr/bin/env bash
 echo "${FAKE_CANON:-reply}" >> "$FAKE_CALLS"
 case "${FAKE_CANON:-reply}" in
-  reply) cat "$FAKE_CANON_REPLY" ;;
+  reply) cp "$LORE_PROMPT_FILE" "$tmp_canon_prompt"; cat "$FAKE_CANON_REPLY" ;;
   none) printf '{"ops": [], "answer": "nothing to do"}\n' ;;
   bad-ops) printf '{"ops": [{"op": "add", "file": "stack/x.md", "text": "Invented.", "explicit": true, "quote": "q", "session": ""}]}\n' ;;
   prose) echo "Everything looks fine to me." ;;
@@ -182,6 +200,7 @@ import json, sys
 print(eval(sys.argv[2], {"d": json.load(open(sys.argv[1]))}))
 FAKE
 export LORE_LOREMASTER_CMD="$tmp/fake-lm.py" LORE_CANON_CMD="$tmp/fake-canon.sh"
+export tmp_canon_prompt="$tmp/canon-prompt"
 export FAKE_CALLS="$tmp/calls" FAKE_KEY="$fixture/rules.json" FAKE_CANON_REPLY="$tmp/reply.json"
 
 j() { python3 "$tmp/j.py" "$@"; }
@@ -201,6 +220,9 @@ lm() { local mode="$1" name="$2"; shift 2; FAKE_LM="$mode" ev "$name" loremaster
 cn() { local mode="$1" name="$2"; shift 2; FAKE_CANON="$mode" ev "$name" canon "$@"; }
 
 # ---- the frozen fixture -----------------------------------------------------------------------
+
+echo "-- attribution edge cases and exact index deficit"
+python3 "$repo_root/tests/test-eval-attribution.py"
 
 echo "-- frozen fixture"
 got="$(cd "$fixture" && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum | sha256sum | cut -d' ' -f1)"
@@ -247,6 +269,11 @@ grep -qx 'folder: 60/60 PASS' "$tmp/log-p1" || fail "stdout folder line"
 [[ ! -e "$HOME/.agents" ]] || fail "the eval wrote into HOME"
 want "$(treehash "$real")" "$before" "the owner's store, hash before and after (LORE_STORE2 set)"
 
+echo "-- eval duplicate claims remain provisional"
+lm duplicates dup1
+want "$rc" 0 "duplicate run exit"
+want "$(j "$tmp/out-dup1/report.json" "(d['bars']['folder']['n'], d['provisional']['bars']['folder']['n'], [c['id'] for c in d['provisional']['candidates']])")" "(57, 59, ['r02', 'r11', 'r25'])" "direct and provisional folder counts"
+want "$(j "$tmp/out-dup1/report.json" "[(r['id'], r['filed'], r['ok']) for r in d['provisional']['rules'] if r['id'] == 'r25']")" "[('r25', ['how-i-work/general.md'], False)]" "wrong folder remains a miss"
 echo "-- temp store removed"
 lm perfect p1b
 want "$rc" 0 "second perfect exit"
@@ -414,6 +441,37 @@ want "$rc" 2 "a fixture expecting a folder that does not exist: exit"
 want "$(j "$tmp/out-x4/report.json" "d['error']")" "LoreError: fixture rule r01 expects a folder that does not exist: 'nowhere'" "the folder defect is reported, not patched"
 
 # ---- Canon ------------------------------------------------------------------------------------
+
+echo "-- Canon revision: frozen copy, correction and exact retirement"
+v2="$repo_root/tests/fixtures/eval-canon-v2"
+want "$(treehash "$v2")" "c7a6b485299892ead0c759b9cd7408c412e94e58d4967030eba920116b6e5082" "revised fixture hash"
+cp -a "$fixture/canon" "$tmp/canon-original"
+cp -a "$v2/canon" "$tmp/canon-revised"
+cp "$tmp/canon-original/expect.json" "$tmp/canon-revised/expect.json"
+cp "$tmp/canon-original/.lore/meta/how-i-work/questions.json" "$tmp/canon-revised/.lore/meta/how-i-work/questions.json"
+diff -qr "$tmp/canon-original" "$tmp/canon-revised" > "$tmp/canon-diff" || fail "only contradiction evidence and expectation differ"
+reply all
+cn reply c-v2 --fixture "$v2" --workdir "$tmp/c-v2-store"
+want "$rc" 0 "revised fixture exit"
+want "$(bars "$tmp/out-c-v2")" "{'canon': (8, 8, True)}" "revised eight gates"
+grep -Ex ' +original quote: "I changed my mind: stop asking one question at a time. Batch all your open questions into a single message so I can answer them together."' "$tmp/canon-prompt" >/dev/null || fail "Canon receives the explicit correction"
+python3 - "$tmp/out-c-v2/report.json" <<'PYTEST'
+import json, sys
+r=json.load(open(sys.argv[1]))
+assert r['gates']['contradiction']['status'] == 'in Inbox'
+assert r['fixture']['sha256'] == 'c7a6b485299892ead0c759b9cd7408c412e94e58d4967030eba920116b6e5082'
+PYTEST
+
+python3 - "$repo_root/skills/lore/scripts" "$tmp/c-v2-store" <<'PYTEST'
+import sys
+sys.path.insert(0, sys.argv[1])
+import lore_master, lore_store
+store = lore_store.Store2(sys.argv[2])
+items = lore_master.inbox_list(store)
+assert [(i['payload']['file'], i['payload']['rule_id']) for i in items
+        if i['kind'] == 'retire' and i['payload']['file'] == 'how-i-work/questions.md'] == [
+            ('how-i-work/questions.md', '76b5ab29')]
+PYTEST
 
 echo "-- Canon: a fake that fixes every gate"
 reply all

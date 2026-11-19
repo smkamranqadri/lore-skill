@@ -162,6 +162,10 @@ def compose(store, findings, cap_chars=CONTEXT_CAP):
         index = lore_store.build_index(store)[0]
     except lore_store.IndexBudgetError:
         index = store.read("INDEX.md") or ""
+    if any(f.get("gate") == "core-budget" for f in findings):
+        full = lore_store.build_index(store, include_all_core=True)[0]
+        limit = int(store.config().get("budget", lore.BUDGET_DEFAULT)) * 4
+        head += f"\n\nCurrent full index needs {max(0, len(full) - limit)} fewer characters to fit. Other fixes can change this target; allow for their effect."
     m = lore_master._Model(store)
     parts = [head, "", "## Layout", "",
              "Top level: " + ", ".join(f"`{t}`" for t in m.top) + ", and `core.md` (rules for every task).",

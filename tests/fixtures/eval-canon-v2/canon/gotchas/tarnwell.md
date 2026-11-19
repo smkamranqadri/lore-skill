@@ -1,0 +1,28 @@
+# Tarnwell
+
+- Tarnwell reads the template when you upload it, so edits made afterwards never reach the running app.
+- Tarnwell rotates its logs at midnight UTC, so a deploy near midnight splits its output across two files.
+- A Tarnwell deploy keeps the previous image for one day only, so a late rollback needs a rebuild.
+- Tarnwell rejects an app name with capital letters, but the error it prints blames the template.
+- Tarnwell injects the port through an environment variable; an app that hard-codes a port never answers.
+- Tarnwell health probes use the root path, so a login redirect there marks a healthy app as down.
+- Tarnwell scales to zero after an hour idle on the small plan, which makes the first request slow.
+- Tarnwell cron entries run in UTC whatever the host clock says, so convert local times first.
+- Tarnwell stores secrets per app, and a copied app starts with none of them set.
+- Tarnwell build logs are cut at two megabytes, which hides the real error in a noisy install step.
+- Tarnwell mounts persistent folders read-only during a rollback, so an app that writes there crashes.
+- Tarnwell treats a trailing slash in a domain entry as a different domain from the same name without one.
+- Tarnwell templates cannot include another template, so shared settings must be pasted into each one.
+- Tarnwell caps an upload at fifty megabytes; larger bundles need the registry route instead.
+- Tarnwell shows the last deploy time in local time but stores it in UTC, which confuses audits.
+- Tarnwell restarts every app on a plan change, including apps that were stopped on purpose.
+- Tarnwell keeps one build running per project, so a second push waits instead of replacing the first.
+- Tarnwell resolves an internal service name only inside the same project, never across projects.
+- Tarnwell ignores a dotfile named in the template unless the build step copies it explicitly.
+- Tarnwell reports a deploy as finished once the container starts, before the health probe has passed.
+- Tarnwell disk quotas count old images, so a full disk usually means stale builds, not data.
+- Tarnwell webhooks retry three times and then give up silently, so check the delivery log by hand.
+- Tarnwell lets two apps claim one domain and serves whichever deployed last.
+- Tarnwell environment values with a dollar sign are expanded at start, so escape them in the template.
+- Tarnwell backups skip folders that are not marked persistent, even when the app writes there daily.
+- Tarnwell shows memory in mebibytes on the dashboard but takes megabytes in the template.

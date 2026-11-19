@@ -27,6 +27,7 @@ from fractions import Fraction
 
 import lore
 import lore_canon
+import lore_eval_attribution
 import lore_hub
 import lore_lint
 import lore_master
@@ -255,9 +256,10 @@ def bar(n, d, need, ok):
     return {"n": n, "d": d, "percent": round(100 * n / d, 1) if d else None, "need": need, "met": ok}
 
 
-def measure_loremaster(store, rules):
+def measure_loremaster(store, rules, where=None):
     """The bars, per-rule and per-pair detail and the spot-check rows, from the store after filing."""
-    where, m = filed_places(store, rules)
+    direct, m = filed_places(store, rules)
+    where = direct if where is None else where
     detail, right = [], 0
     for r in rules:
         files = sorted({f for f, _ in where[r["id"]]})
@@ -292,18 +294,6 @@ def measure_loremaster(store, rules):
     return bars, detail, pairs, rows, info
 
 
-def spot_sheet(rows):
-    def cell(text):
-        return " ".join(str(text).split()).replace("|", "\\|")
-    out = ["# Meaning spot-check", "",
-           f"{len(rows)} rules, chosen by a fixed sort (sha1 of the id). For each, does the filed wording say what "
-           "the original says, no more and no less? Write yes or no in the last column. The tool judges nothing.",
-           "", "| # | id | original wording | filed wording (file) | yes/no |", "|---|---|---|---|---|"]
-    for n, r in enumerate(rows, 1):
-        filed = "<br>".join(f"{cell(x['text'])} ({x['file']})" for x in r["filed"]) or "(not filed)"
-        out.append(f"| {n} | {r['id']} | {cell(r['original'])} | {filed} |  |")
-    return "\n".join(out) + "\n"
-
 
 def run_loremaster(fixture, batch, workdir=None):
     """(report, spot-check sheet or None) of one Loremaster run."""
@@ -317,9 +307,10 @@ def run_loremaster(fixture, batch, workdir=None):
             report["model"] = role_info(store, "loremaster")
             items = queue_items(store, rules)
             model = meter.wrap(lore_hub.run_model(store, "loremaster"))
+            claims = lore_eval_attribution.Claims()
             for n in range(0, len(items), batch):
                 chunk = items[n:n + batch]
-                res = lore_master.file_items(store, chunk, model, source="eval")
+                res = lore_master.file_items(store, chunk, claims.wrap(model, rules[n:n + batch], store, chunk), source="eval")
                 batches.append({"batch": n // batch + 1, "items": len(chunk), "commit": res["commit"],
                                 "files_changed": len(res["changed"]), "inbox": len(res["inbox"]),
                                 "rejected": [lore.redact(str(x)) for x in res["rejected"][:5]]})
@@ -327,10 +318,17 @@ def run_loremaster(fixture, batch, workdir=None):
                     report["rejected"] = batches[-1]["rejected"]
                     raise lore.LoreError(f"the validator rejected the reply to batch {n // batch + 1}: "
                                          + "; ".join(report["rejected"]))
-            bars, detail, pairs, rows, info = measure_loremaster(store, rules)
-            report.update(status="ok", bars=bars, rules=detail, pairs=pairs, **info)
+            direct, identities = claims.direct(store, rules)
+            bars, detail, pairs, rows, info = measure_loremaster(store, rules, direct)
+            report.update(bars=bars, rules=detail, pairs=pairs, **info)
+            where, candidates = claims.resolve(store, rules, direct, identities)
+            adjusted, adjusted_rules, adjusted_pairs, rows, _ = measure_loremaster(store, rules, where)
+            links = lore_master._Model(store)
+            report.update(provisional={"bars": adjusted, "rules": adjusted_rules, "pairs": adjusted_pairs,
+                                       "candidates": candidates, "links": {f: sorted(links.links(f)) for f in links.files}})
             report["spot_check"] = [r["id"] for r in rows]
-            sheet = spot_sheet(rows)
+            sheet = lore_eval_attribution.spot_sheet(rows, candidates)
+            report["status"] = "ok"
     except Exception as err:   # a model error, an unparseable reply: reported, and the run is a failure
         report["error"] = failure(err)
     report.update(batches=batches, calls=meter.calls, tokens=meter.tokens(),
@@ -485,6 +483,8 @@ def render(report, stamp):
                 f"{r['rules_in_core']} (a core filing counts as a folder miss). Lint findings after filing: "
                 f"{json.dumps(r['lint_after'], sort_keys=True)}", "",
                 "Meaning: 15 rules to judge yes or no in `spot-check.md`; the tool judges none.", ""]
+    if r["role"] == "loremaster" and r["status"] == "ok":
+        out += lore_eval_attribution.render(r["provisional"])
     if r["role"] == "loremaster" and r.get("batches"):
         out += ["## Batches", "", "| # | items | commit | files changed | rejected |", "|---|---|---|---|---|"]
         out += [f"| {b['batch']} | {b['items']} | {b['commit'] or '-'} | {b['files_changed']} | "

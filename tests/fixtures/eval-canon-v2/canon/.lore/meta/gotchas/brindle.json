@@ -1,0 +1,35 @@
+{
+ "last_read": {
+  "m-0badf00d": "2026-09-20"
+ },
+ "read_when": "you change a Brindle pipeline",
+ "reads": {
+  "m-0badf00d": 3
+ },
+ "rules": {
+  "2846c883": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Brindle runs each job on a clean machine, so anything a job needs must be restored from the cache.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "2fc15ea7": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Brindle CI cancels the older run on the same branch, so a quick follow-up push can kill a deploy job.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  }
+ }
+}

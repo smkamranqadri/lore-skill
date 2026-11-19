@@ -447,7 +447,7 @@ def record_reads(store, counts, machine):
 
 # ---- the index --------------------------------------------------------------------------------
 
-def build_index(store):
+def build_index(store, *, include_all_core=False):
     """INDEX.md from the layout, core.md and each sidecar's read_when, under the budget.
     Returns (content, report)."""
     budget = int(store.config().get("budget", lore.BUDGET_DEFAULT))
@@ -467,14 +467,14 @@ def build_index(store):
     tail = ["", f"Read when (files in {store.root}):"] + (lines or ["- (no topic files yet)"])
     render = lambda core: "\n".join(head + ["Core rules:"] + (core or ["- (none yet)"]) + tail) + "\n"
     need = len(render([]))
-    if need > limit:   # the read-when lines are not optional: refuse rather than overflow
+    if need > limit and not include_all_core:   # the read-when lines are not optional: refuse rather than overflow
         raise IndexBudgetError(
             f"the index needs {lore.tokens(render([]))} tokens without any core rule, over the budget of "
             f"{budget}; raise `budget:` in .lore/config or merge topic files")
     core = []
     for r in parse_rules(store.read("core.md"))[1]:
         line = f"- {r}"
-        if len(render(core + [line])) > limit:
+        if not include_all_core and len(render(core + [line])) > limit:
             rep["core_dropped"] += 1
             continue
         core.append(line)

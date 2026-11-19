@@ -1,0 +1,50 @@
+{
+ "last_read": {
+  "m-0badf00d": "2026-09-20"
+ },
+ "links": [
+  "gotchas/quillbar-legacy.md"
+ ],
+ "read_when": "you build or bundle with Quillbar",
+ "reads": {
+  "m-0badf00d": 3
+ },
+ "rules": {
+  "43d2fddf": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Quillbar embeds environment variables at build time, so changing one needs a rebuild, not a restart.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "48a33bff": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Quillbar's watch mode silently stops when the config file is renamed; restart it after renaming the config.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "ae8020aa": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Quillbar caches transforms under .quill-cache; clear it after upgrading a plugin or stale output appears.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  }
+ }
+}

@@ -32,7 +32,8 @@ own commit, so every change can be reverted on its own.
   stands; `retire` the other with the reason (name its `file` when its id is in two files). If you
   cannot tell, leave it for the owner. Do not reword a rule to make the clash go away.
 - `core-budget`: core rules no longer fit the index. `reword` the longest core rules shorter,
-  keeping each one's meaning against its original quote.
+  keeping each one's meaning against its original quote. The measured full-index deficit is a
+  current target; other operations may change index size, so leave enough room for those changes.
 - `broken-link`: a topic links to a file that is gone. `unlink` it, or `link` the topic to the
   file that now holds those rules.
 - `orphan`: nothing leads to a topic file. `describe` it with a read-when line ("read when

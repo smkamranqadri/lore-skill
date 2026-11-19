@@ -1,0 +1,35 @@
+{
+ "last_read": {
+  "m-0badf00d": "2026-09-20"
+ },
+ "read_when": "an action cannot easily be undone",
+ "reads": {
+  "m-0badf00d": 3
+ },
+ "rules": {
+  "565df06d": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Ask me before any write to production, even when you are fixing an outage.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  },
+  "bfafdb24": {
+   "confidence": 0.9,
+   "count": 1,
+   "created": "2026-09-01",
+   "dates": [
+    "2026-09-01"
+   ],
+   "explicit": true,
+   "sessions": [],
+   "text": "Look before deleting anything: its contents, what references it and any unmerged work.",
+   "updated": "2026-09-01T09:00:00+00:00"
+  }
+ }
+}
