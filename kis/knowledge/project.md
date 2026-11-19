@@ -49,7 +49,7 @@ Scope is coding agents only. The 2.0 direction is in `../intent/plan-2026-10-22-
 
 - `tests/run.sh` fails four older suites (test-canon, test-lint, test-master, test-store2) when
   `TMPDIR` is long (about 130 characters, such as an agent's session scratchpad): the index-budget
-  tests print the store path into the index. They pass from a short path; run proof runs with
-  `TMPDIR=/home/mkamran/.cache/<dir>` (checked on base `1f6dff3`, 2026-10-24).
+  tests print the store path into the index. They pass from a short path (checked on base `1f6dff3`,
+  2026-10-24).
 - `OnBootSec` never fires in a systemd user timer after a late login (it counts from kernel boot);
   `lore-sync.timer` uses `OnStartupSec=2min` since 2.0.0-p4a.1 and `sync-timer check` flags the old unit.
