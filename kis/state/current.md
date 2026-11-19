@@ -1,6 +1,7 @@
 # Current
 
-- Branch: `lore-2.0` (local, not pushed; P5a code commit `decfaad`, KIS sync commit follows); `main` tracks `origin/main` at
+- Branch: `lore-2.0` tracks `origin/lore-2.0` at `9277a7c` (pushed 2026-11-20; P5a code commit
+  `decfaad`); `main` tracks `origin/main` at
   `https://github.com/smkamranqadri/lore-skill` (public). Installed live: lore 2.0.0-p4a.1 beside
   1.x (2026-11-05, `update` and `check` exit 0). 1.0.0 is the last public release; `v1.1.0` is
   tagged locally at `e52b56e`, not released.
